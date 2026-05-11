@@ -65,13 +65,38 @@
         .bg-yellow { background-color: #fff9c4 !important; color: #f57f17 !important; }
 
         #saveIndicator { font-size: 13px; font-weight: bold; color: #2e7d32; margin-right: 15px; }
+
+        /* Updated Header Layout */
+.header-left {
+    flex: 1; /* Takes up available space on the left */
+    display: flex;
+    align-items: center;
+}
+
+/* Red Rectangle Title Style */
+.seal-log-header {
+    border: 3px solid #d32f2f; /* Red rectangle */
+    border-radius: 10px;        /* Smooth/rounded edges */
+    padding: 5px 20px;
+    color: #000000;             /* Black letters */
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -1px;
+    display: inline-block;
+    text-transform: uppercase;
+}
+
+/* Remove or hide header-center as it's no longer used */
+.header-center {
+    display: none;
+}
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div class="header-left"><span style="font-size: 24px;">🛡️</span></div>
-    <div class="header-center"><span>Tamper Seal Log</span></div>
+    <div class="header-left"><span style="font-size: 24px;">Tamper Seal Log</span></div>
+    <div class="header-center"></div>
     <div class="header-right"></div>
 </div>
 
