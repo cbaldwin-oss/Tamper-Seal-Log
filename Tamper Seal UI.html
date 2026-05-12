@@ -9,6 +9,22 @@
     <style>
         /* MATCHING LAUNCHPAD STYLING */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+        /* Styling for all cells except the Status column */
+.cell-row textarea {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* You can change the typeface here */
+    font-size: 14px;      /* Adjust the size as needed */
+    font-weight: 500;      /* Options: 400 (Normal), 600 (Semi-bold), 700 (Bold) */
+    color: #333333;       /* Standard text color */
+}
+
+/* Ensure centering is preserved while changing fonts */
+.cell-row textarea {
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.5;     /* Helps keep text vertically balanced */
+}
 
         .header {
             height: 80px; background-color: #ffffff; border-bottom: 1px solid #dcdcdc;
