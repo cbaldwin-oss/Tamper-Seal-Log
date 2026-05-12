@@ -320,28 +320,25 @@ function addRows(container, assetName, count) {
 
 async function createAssetLog() {
     const container = document.getElementById('main-content-area');
-    container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning all entries for Areas and Assets...</p>';
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning 10,000 entries for Areas and Assets...</p>';
 
-    // 1. Fetch the Area and Asset names from the main log table
-    // We fetch up to 10,000 rows to ensure we don't miss any folders
+    // 1. Fetch the Area and Asset names from the main log table (up to 10,000 rows)
     const { data: allRecords, error: fetchErr } = await _supabase
-        .from('Assets') // Ensure this is your main data table
+        .from('Assets') 
         .select('asset_name, location')
         .range(0, 9999); 
 
     if (fetchErr) {
-        console.error("Error scanning entries:", fetchErr);
         container.innerHTML = '<p style="text-align:center; color:red;">Error loading log hierarchy.</p>';
         return;
     }
 
     container.innerHTML = ''; 
 
-    // 2. Identify every unique Area (Location)
+    // 2. Identify unique Areas (Locations)
     const uniqueAreaNames = [...new Set(allRecords.map(item => item.location || 'Unassigned'))].sort();
 
     uniqueAreaNames.forEach(areaName => {
-        // Create Area Container
         const areaDiv = document.createElement('div');
         areaDiv.className = 'area-container';
 
@@ -357,7 +354,7 @@ async function createAssetLog() {
             areaHeader.querySelector('.area-arrow').innerText = isHidden ? '▶' : '▼';
         };
 
-        // 3. Find every unique Asset that belongs to this specific Area
+        // 3. Filter Unique Assets belonging to this Area
         const assetsInThisArea = allRecords.filter(r => (r.location || 'Unassigned') === areaName);
         const uniqueAssetNames = [...new Set(assetsInThisArea.map(r => r.asset_name))].sort();
 
@@ -371,13 +368,13 @@ async function createAssetLog() {
             
             const rowsDiv = document.createElement('div');
             rowsDiv.className = 'rows-container hidden';
-            rowsDiv.setAttribute('data-loaded', 'false'); // For Lazy Loading
+            rowsDiv.setAttribute('data-loaded', 'false'); // Lazy load tracker
 
             assetHeader.onclick = async () => {
                 const isHidden = rowsDiv.classList.toggle('hidden');
                 assetHeader.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
 
-                // LAZY LOAD: Only fetch the full row details when clicked
+                // LAZY LOAD: Fetch actual log info only when opened
                 if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
                     await fetchAndRender(rowsDiv, assetName);
                 }
@@ -397,12 +394,11 @@ async function createAssetLog() {
 async function fetchAndRender(container, assetName) {
     container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">Loading up to 10,000 entries...</p>';
 
-    // Fetch entries with the high range limit
     const { data: entries, error } = await _supabase
-        .from('Assets') // Ensure this points to your table with individual log entries
+        .from('Assets') 
         .select('*')
         .eq('asset_name', assetName)
-        .range(0, 9999); // Fetches up to 10,000 rows
+        .range(0, 9999); 
 
     if (error) {
         container.innerHTML = '<p style="color:red; padding:10px;">Error loading data.</p>';
