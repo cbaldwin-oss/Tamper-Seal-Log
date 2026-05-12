@@ -280,10 +280,7 @@
     <div class="header-left">
         <div class="seal-log-header">Tamper Seal Log</div>
     </div>
-    <div class="header-right" id="filter-container">
-        </div>
-    <div class="header-center"></div>
-    <div class="header-right"></div>
+    <div class="header-right" id="filter-container"></div>
 </div>
 
 <div class="subheader">
@@ -479,6 +476,7 @@ async function fetchHierarchyData() {
 
 function createFilterButtons() {
     const container = document.getElementById('filter-container');
+    if (!container) return; // Safety check
     container.innerHTML = '';
 
     // 1. Location Filters
@@ -664,7 +662,7 @@ function collapseAll() {
     document.querySelectorAll('.arrow').forEach(a => a.innerText = '▶');
 }
 
-window.onload = createAssetLog;
+window.onload = initApp;
 </script>
 </body>
 </html>
