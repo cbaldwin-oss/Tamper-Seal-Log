@@ -47,7 +47,7 @@
         .rows-container { padding: 10px 20px; display: block; }
         .rows-container.hidden { display: none; }
 
-        /* Updated Cell Input Styles */
+        /* Consolidated Cell Input Styles */
 .cell-row select, 
 .cell-row textarea, 
 .status-cell {
@@ -55,7 +55,7 @@
     border: none !important; 
     border-right: 1px solid #ccc !important;
     background-color: #f9f9f9; 
-    padding: 10px 8px;    /* Balanced vertical padding */
+    padding: 12px 8px;    /* Increased vertical padding to assist vertical centering */
     font-size: 13px; 
     min-height: 40px; 
     resize: none;
@@ -63,35 +63,33 @@
     display: flex;        /* Enables flex centering for select and status-cell */
     align-items: center;  /* Vertically centers text in select/status-cell */
     justify-content: center; 
-    line-height: 1.4;     /* Improves vertical centering in textareas */
+    line-height: 1.4;     /* Centers text line in textareas */
 }
 
-/* Specific fix for select elements to center text in some browsers */
+/* Ensure the delete button stays aligned */
+.delete-btn {
+    flex: 0 0 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix for standard select centering */
 .cell-row select {
     text-align-last: center; 
+    appearance: none; /* Removes default arrows for a cleaner centered look */
 }
 
         /* GRID ROW STYLES */
         /* Updated Row Styles */
 .cell-row {
     display: flex; 
-    align-items: center; /* Centers the cells vertically within the row */
+    align-items: center; /* Centers elements vertically relative to each other in the row */
     border-bottom: 2px solid #b0bec5; 
     gap: 4px; 
     background-color: #fff;
+    min-height: 50px;    /* Ensuring a comfortable row height */
 }
-        .cell-row select, .cell-row textarea, .status-cell {
-            flex: 1; border: none !important; border-right: 1px solid #ccc !important;
-            background-color: #f9f9f9; padding: 8px; font-size: 13px; min-height: 40px; resize: none;
-        }
-        .status-cell {
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    font-weight: bold;
-    height: 100%; /* Ensures it fills the centered row height */
-}
-        .delete-btn { flex: 0 0 30px; color: #d32f2f; background: none; border: none; cursor: pointer; font-size: 18px; }
 
         /* COLOR LOGIC */
         .bg-green { background-color: #c8e6c9 !important; color: #1b5e20 !important; }
