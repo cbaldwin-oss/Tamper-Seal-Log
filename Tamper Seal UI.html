@@ -223,6 +223,55 @@
     font-size: 18px; 
     padding: 10px 20px; 
 }
+
+/* Filter Styling */
+.header-right {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.filter-label {
+    font-size: 10px;
+    font-weight: bold;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.filter-btn:hover {
+    background: #f5f5f5;
+}
+
+.filter-btn.active {
+    background: #d32f2f;
+    color: white;
+    border-color: #d32f2f;
+    font-weight: bold;
+}
+
+/* Location-specific active color */
+.filter-btn.active.loc-filter {
+    background: #333;
+    border-color: #333;
+}
     </style>
 </head>
 <body>
@@ -231,6 +280,8 @@
     <div class="header-left">
         <div class="seal-log-header">Tamper Seal Log</div>
     </div>
+    <div class="header-right" id="filter-container">
+        </div>
     <div class="header-center"></div>
     <div class="header-right"></div>
 </div>
@@ -282,9 +333,11 @@ const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let dropdownData = { status: [] };
 
-async function initApp() {
+let allHierarchyRecords = [];
+let activeFilters = { location: 'All', status: 'All' };
 
-    await createAssetLog();
+async function initApp() {
+    await fetchHierarchyData();
 }
     
 
@@ -404,65 +457,154 @@ async function createAssetLog() {
     });
 }
 
-async function fetchAndRender(container, assetName) {
-    container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">Loading up to 10,000 entries...</p>';
+async function fetchHierarchyData() {
+    const container = document.getElementById('main-content-area');
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning data for filters...</p>';
 
-    let entries = [];
-    let from = 0;
-    let to = 999;
-    let fetchMore = true;
+    // Fetch up to 10,000 records to build the folders and filter options
+    const { data, error } = await _supabase
+        .from('Assets')
+        .select('*')
+        .range(0, 9999);
 
-    // 1. Pagination loop to fetch up to 10,000 records
-    while (fetchMore && entries.length < 10000) {
-        const { data, error } = await _supabase
-            .from('Assets') 
-            .select('*')
-            .eq('asset_name', assetName)
-            .range(from, to);
-
-        if (error) {
-            container.innerHTML = '<p style="color:red; padding:10px;">Error loading data.</p>';
-            return;
-        }
-
-        entries = entries.concat(data);
-
-        if (data.length < 1000) {
-            fetchMore = false;
-        } else {
-            from += 1000;
-            to += 1000;
-        }
+    if (error) {
+        container.innerHTML = '<p style="text-align:center; color:red;">Error loading data.</p>';
+        return;
     }
 
-    // 2. Custom Sorting Logic
-    const statusPriority = {
-        'broken': 1,
-        'fail': 1,
-        'intact': 2,
-        'pass': 2,
-        'removed': 3,
-        'replaced': 3,
-        'void': 3
-    };
+    allHierarchyRecords = data;
+    createFilterButtons();
+    renderFilteredLog();
+}
 
-    entries.sort((a, b) => {
-        const statusA = (a.status || '').toLowerCase();
-        const statusB = (b.status || '').toLowerCase();
+function createFilterButtons() {
+    const container = document.getElementById('filter-container');
+    container.innerHTML = '';
 
-        // Find priority by checking if the status string contains any of our keywords
-        const getPriority = (status) => {
-            for (let key in statusPriority) {
-                if (status.includes(key)) return statusPriority[key];
-            }
-            return 4; // Default priority for unknown statuses
-        };
-
-        return getPriority(statusA) - getPriority(statusB);
+    // 1. Location Filters
+    const locations = ['All', ...new Set(allHierarchyRecords.map(r => (r.Location || r.location || 'Unassigned').trim()))].sort();
+    const locGroup = document.createElement('div');
+    locGroup.className = 'filter-group';
+    locGroup.innerHTML = '<span class="filter-label">Location:</span>';
+    
+    locations.forEach(loc => {
+        const btn = document.createElement('button');
+        btn.className = `filter-btn loc-filter ${activeFilters.location === loc ? 'active' : ''}`;
+        btn.innerText = loc;
+        btn.onclick = () => { activeFilters.location = loc; createFilterButtons(); renderFilteredLog(); };
+        locGroup.appendChild(btn);
     });
 
-    container.innerHTML = ''; 
-    renderEntries(container, entries);
+    // 2. Status Filters
+    const statuses = ['All', 'Intact', 'Broken', 'Removed'];
+    const statGroup = document.createElement('div');
+    statGroup.className = 'filter-group';
+    statGroup.innerHTML = '<span class="filter-label">Status:</span>';
+
+    statuses.forEach(stat => {
+        const btn = document.createElement('button');
+        btn.className = `filter-btn ${activeFilters.status === stat ? 'active' : ''}`;
+        btn.innerText = stat;
+        btn.onclick = () => { activeFilters.status = stat; createFilterButtons(); renderFilteredLog(); };
+        statGroup.appendChild(btn);
+    });
+
+    container.appendChild(locGroup);
+    container.appendChild(statGroup);
+}
+
+function renderFilteredLog() {
+    const container = document.getElementById('main-content-area');
+    container.innerHTML = '';
+
+    // Filter locations first
+    const targetLoc = activeFilters.location;
+    const targetStat = activeFilters.status.toLowerCase();
+
+    const uniqueAreas = [...new Set(allHierarchyRecords.map(r => (r.Location || r.location || 'Unassigned').trim()))].sort();
+
+    uniqueAreas.forEach(areaName => {
+        // Skip if location filter is active and doesn't match
+        if (targetLoc !== 'All' && areaName !== targetLoc) return;
+
+        // Check if this area contains any assets matching the status filter
+        const areaRecords = allHierarchyRecords.filter(r => (r.Location || r.location || 'Unassigned').trim() === areaName);
+        const uniqueAssetNames = [...new Set(areaRecords.map(r => r.asset_name))].sort();
+
+        let visibleAssets = 0;
+
+        const areaDiv = document.createElement('div');
+        areaDiv.className = 'area-container';
+        const areaContent = document.createElement('div');
+        areaContent.className = 'area-content hidden';
+
+        uniqueAssetNames.forEach(assetName => {
+            const assetRecords = areaRecords.filter(r => r.asset_name === assetName);
+            
+            // If status filter is active, check if asset contains that status
+            if (targetStat !== 'all') {
+                const hasStatus = assetRecords.some(r => (r.status || '').toLowerCase().includes(targetStat));
+                if (!hasStatus) return;
+            }
+
+            visibleAssets++;
+            const assetDiv = document.createElement('div');
+            assetDiv.className = 'asset-container';
+            assetDiv.innerHTML = `<div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
+                <span>Asset: ${assetName}</span><span class="arrow">▶</span>
+            </div>
+            <div class="rows-container hidden" data-loaded="false"></div>`;
+            areaContent.appendChild(assetDiv);
+        });
+
+        if (visibleAssets > 0) {
+            areaDiv.innerHTML = `<div class="area-header" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('.area-arrow').innerText = this.nextElementSibling.classList.contains('hidden') ? '▶' : '▼';">
+                <span>Area: ${areaName}</span><span class="area-arrow">▶</span>
+            </div>`;
+            areaDiv.appendChild(areaContent);
+            container.appendChild(areaDiv);
+        }
+    });
+}
+
+// Logic for opening an asset and loading its data
+async function toggleAsset(header, assetName) {
+    const rowsDiv = header.nextElementSibling;
+    const isHidden = rowsDiv.classList.toggle('hidden');
+    header.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
+
+    if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
+        await fetchAndRender(rowsDiv, assetName);
+    }
+}
+
+async function fetchAndRender(container, assetName) {
+    container.innerHTML = '<p style="padding:10px;">Loading entries...</p>';
+    
+    // Fetch specifically for this asset
+    const { data, error } = await _supabase
+        .from('Assets')
+        .select('*')
+        .eq('asset_name', assetName)
+        .range(0, 9999);
+
+    if (error) return;
+
+    // Filter the rows by status if needed
+    let filteredData = data;
+    if (activeFilters.status !== 'All') {
+        const target = activeFilters.status.toLowerCase();
+        filteredData = data.filter(r => (r.status || '').toLowerCase().includes(target));
+    }
+
+    // Sort: Broken first
+    filteredData.sort((a, b) => {
+        const getP = (s) => (s||'').toLowerCase().includes('broken') ? 1 : (s||'').toLowerCase().includes('intact') ? 2 : 3;
+        return getP(a.status) - getP(b.status);
+    });
+
+    container.innerHTML = '';
+    renderEntries(container, filteredData);
     container.setAttribute('data-loaded', 'true');
 }
 
