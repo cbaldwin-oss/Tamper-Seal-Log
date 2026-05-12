@@ -353,7 +353,7 @@ async function createAssetLog() {
 
         const areaHeader = document.createElement('div');
         areaHeader.className = 'area-header';
-        areaHeader.innerHTML = `<span>Area: ${areaName}</span><span class="area-arrow">▶</span>`;
+        areaHeader.innerHTML = `<span>${areaName}</span><span class="area-arrow">▶</span>`;
         
         const areaContent = document.createElement('div');
         areaContent.className = 'area-content hidden';
@@ -377,7 +377,7 @@ async function createAssetLog() {
 
             const assetHeader = document.createElement('div');
             assetHeader.className = 'asset-header';
-            assetHeader.innerHTML = `<span>Asset: ${assetName}</span><span class="arrow">▶</span>`;
+            assetHeader.innerHTML = `<span>${assetName}</span><span class="arrow">▶</span>`;
             
             const rowsDiv = document.createElement('div');
             rowsDiv.className = 'rows-container hidden';
