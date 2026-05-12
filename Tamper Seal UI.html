@@ -325,7 +325,7 @@ async function createAssetLog() {
     // 1. Fetch using the correct case-sensitive column name 'Location'
     const { data: allRecords, error: fetchErr } = await _supabase
         .from('Assets') 
-        .select('asset_name, Location') // Ensure this matches your DB exactly
+        .select('asset_name, location') // Ensure this matches your DB exactly
         .range(0, 9999); 
 
     if (fetchErr) {
@@ -340,7 +340,7 @@ async function createAssetLog() {
     // We trim whitespace and handle potential casing differences (e.g., "Area A" vs "area a")
     const uniqueAreaNames = [...new Set(allRecords.map(item => {
         // Fallback check for both property casings
-        const loc = item.Location || item.location || 'Unassigned';
+        const loc = item.location || item.location || 'Unassigned';
         return loc.toString().trim(); // Remove hidden spaces
     }))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent' }));
 
@@ -362,7 +362,7 @@ async function createAssetLog() {
 
         // 3. Filter Assets belonging to this Area using the same cleaned logic
         const assetsInThisArea = allRecords.filter(r => {
-            const loc = r.Location || r.location || 'Unassigned';
+            const loc = r.location || r.location || 'Unassigned';
             return loc.toString().trim() === areaName;
         });
         
