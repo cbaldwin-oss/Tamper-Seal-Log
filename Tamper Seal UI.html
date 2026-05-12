@@ -159,20 +159,7 @@ const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let dropdownData = { status: [] };
 
 async function initApp() {
-    await fetchDropdownOptions();
     await createAssetLog();
-}
-
-async function fetchDropdownOptions() {
-    // Fetch options for the 'Status' column from Supabase
-    const { data, error } = await _supabase
-        .from('TamperSealOptions')
-        .select('option_text')
-        .eq('column_key', 'status');
-
-    if (!error && data) {
-        dropdownData.status = data.map(item => item.option_text);
-    }
 }
     
 async function createAssetLog() {
