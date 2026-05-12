@@ -99,25 +99,6 @@
     padding-right: 15px;
     flex: 1;
 }
-
-/* Ensure the red rectangle header (from previous turn) stays on the left */
-.header-left {
-    flex: 1;
-    display: flex;
-    align-items: center;
-}
-
-.seal-log-header {
-    border: 3px solid #d32f2f;
-    background-color: #ffebee;
-    border-radius: 10px;
-    padding: 5px 20px;
-    color: #000000;
-    font-weight: 800;
-    font-size: 24px;
-    text-transform: uppercase;
-    display: inline-block;
-}
     </style>
 </head>
 <body>
@@ -164,8 +145,12 @@
     </div>
 
 <script>
-    // Configuration: List of Assets to track
-    const ASSETS = ["AHU-01", "AHU-02", "Electrical Switchgear RM-1", "Main Water Header", "Server Rack A-01", "Server Rack B-04"];
+
+const SUPABASE_URL = 'https://jrhrmntpfxoarulcnbqz.supabase.co/rest/v1/';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyaHJtbnRwZnhvYXJ1bGNuYnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAyNDUsImV4cCI6MjA5NDE2NjI0NX0.Gbru98OZX5n3gfiRHyQFl-UzzC2SJ9Gi0gjb_HD__SE';
+
+const { createClient } = supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     
 async function createAssetLog() {
     const container = document.getElementById('main-content-area');
