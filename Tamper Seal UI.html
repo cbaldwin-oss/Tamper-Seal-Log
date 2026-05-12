@@ -248,28 +248,21 @@ async function initApp() {
     
 async function createAssetLog() {
     const container = document.getElementById('main-content-area');
-    container.innerHTML = '<p style="text-align:center; padding:20px;">Refueling Log Data...</p>';
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Refueling Log Headers...</p>';
 
-    // 1. Fetch Unique Assets
+    // 1. Fetch only the unique Asset Headers
     const { data: assets, error: assetErr } = await _supabase
         .from('Assets') 
-        .select('asset_name, location') // Using 'Location' based on database casing
+        .select('asset_name, location')
         .order('asset_name', { ascending: true });
 
-    // 2. Fetch All Row Entries
-const { data: entries, error: entryErr } = await _supabase
-    .from('Assets') 
-    .select('*')
-    .range(0, 3000);
-
-    if (assetErr || entryErr) {
-        container.innerHTML = '<p style="text-align:center; color:red;">Error loading data.</p>';
+    if (assetErr) {
+        container.innerHTML = '<p style="text-align:center; color:red;">Error loading assets.</p>';
         return;
     }
 
     container.innerHTML = ''; 
 
-    // Filter for unique Assets
     const uniqueAssets = Array.from(new Map(assets.map(item => [item.asset_name, item])).values());
 
     uniqueAssets.forEach(item => {
@@ -286,22 +279,45 @@ const { data: entries, error: entryErr } = await _supabase
         const rowsDiv = document.createElement('div');
         rowsDiv.className = 'rows-container hidden'; 
         rowsDiv.id = `asset-${item.asset_name.replace(/\s+/g, '-')}`;
+        // Track if this folder has already loaded its data
+        rowsDiv.setAttribute('data-loaded', 'false');
 
-        header.onclick = () => {
+        header.onclick = async () => {
             const isHidden = rowsDiv.classList.toggle('hidden');
             header.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
+
+            // --- LAZY LOADING LOGIC ---
+            // Only fetch if opening for the first time
+            if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
+                await fetchAndRender(rowsDiv, item.asset_name);
+            }
         };
-
-        // 3. Filter entries belonging to this asset and render them
-        const assetEntries = entries.filter(e => e.asset_name === item.asset_name);
-        renderEntries(rowsDiv, assetEntries);
-
-        // NOTE: The "+ Add Entry" button has been removed as requested.
 
         assetDiv.appendChild(header);
         assetDiv.appendChild(rowsDiv);
         container.appendChild(assetDiv);
     });
+}
+
+async function fetchAndRender(container, assetName) {
+    container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">Loading entries...</p>';
+
+    // Fetch entries for THIS specific asset with a 10,000 row limit
+    const { data: entries, error } = await _supabase
+        .from('Assets') // Ensure this is your actual entries table name
+        .select('*')
+        .eq('asset_name', assetName)
+        .range(0, 9999); // Fetches up to 10,000 rows
+
+    if (error) {
+        console.error("Fetch Error:", error);
+        container.innerHTML = '<p style="color:red; padding:10px;">Error loading data.</p>';
+        return;
+    }
+
+    container.innerHTML = ''; // Clear the "Loading..." message
+    renderEntries(container, entries);
+    container.setAttribute('data-loaded', 'true'); // Prevent duplicate fetches
 }
 
 function addRows(container, assetName, count) {
