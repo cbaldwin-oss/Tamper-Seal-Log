@@ -322,11 +322,11 @@ async function createAssetLog() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning 10,000 entries for Areas and Assets...</p>';
 
-    // 1. Fetch using the correct case-sensitive column name 'Location'
+    // 1. Fetch using '*' to ensure we capture any column casing (Location vs location)
     const { data: allRecords, error: fetchErr } = await _supabase
         .from('Assets') 
-        .select('asset_name, location') // Ensure this matches your DB exactly
-        .range(0, 9999); 
+        .select('*') 
+        .range(0, 9999); // Scans the first 10,000 rows
 
     if (fetchErr) {
         console.error("Scan Error:", fetchErr);
@@ -334,15 +334,18 @@ async function createAssetLog() {
         return;
     }
 
+    console.log(`Total records fetched for hierarchy: ${allRecords.length}`);
+
     container.innerHTML = ''; 
 
-    // 2. Robust Unique Location Identification
-    // We trim whitespace and handle potential casing differences (e.g., "Area A" vs "area a")
+    // 2. Identify unique Areas with cleaning (trim and casing check)
     const uniqueAreaNames = [...new Set(allRecords.map(item => {
-        // Fallback check for both property casings
-        const loc = item.location || item.location || 'Unassigned';
-        return loc.toString().trim(); // Remove hidden spaces
-    }))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent' }));
+        // This check is case-insensitive for the column name to find "FIA Z1"
+        const loc = item.Location || item.location || 'Unassigned';
+        return loc.toString().trim(); // Removes trailing/leading spaces
+    }))].sort();
+
+    console.log("Unique Areas identified:", uniqueAreaNames);
 
     uniqueAreaNames.forEach(areaName => {
         const areaDiv = document.createElement('div');
@@ -360,10 +363,10 @@ async function createAssetLog() {
             areaHeader.querySelector('.area-arrow').innerText = isHidden ? '▶' : '▼';
         };
 
-        // 3. Filter Assets belonging to this Area using the same cleaned logic
+        // 3. Filter Assets belonging to this Area using the same robust check
         const assetsInThisArea = allRecords.filter(r => {
-            const loc = r.location || r.location || 'Unassigned';
-            return loc.toString().trim() === areaName;
+            const val = r.Location || r.location || 'Unassigned';
+            return val.toString().trim() === areaName;
         });
         
         const uniqueAssetNames = [...new Set(assetsInThisArea.map(r => r.asset_name))].sort();
@@ -384,6 +387,7 @@ async function createAssetLog() {
                 const isHidden = rowsDiv.classList.toggle('hidden');
                 assetHeader.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
 
+                // Lazy load: Fetch actual entries only when asset is opened
                 if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
                     await fetchAndRender(rowsDiv, assetName);
                 }
