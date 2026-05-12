@@ -91,6 +91,33 @@
 .header-center {
     display: none;
 }
+/* Styling for the Asset | Location text in the green bar */
+.asset-header span:first-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 15px;
+    flex: 1;
+}
+
+/* Ensure the red rectangle header (from previous turn) stays on the left */
+.header-left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.seal-log-header {
+    border: 3px solid #d32f2f;
+    background-color: #ffebee;
+    border-radius: 10px;
+    padding: 5px 20px;
+    color: #000000;
+    font-weight: 800;
+    font-size: 24px;
+    text-transform: uppercase;
+    display: inline-block;
+}
     </style>
 </head>
 <body>
@@ -140,42 +167,69 @@
     // Configuration: List of Assets to track
     const ASSETS = ["AHU-01", "AHU-02", "Electrical Switchgear RM-1", "Main Water Header", "Server Rack A-01", "Server Rack B-04"];
     
-    function createAssetLog() {
-        const container = document.getElementById('main-content-area');
-        
-        ASSETS.forEach(assetName => {
-            const assetDiv = document.createElement('div');
-            assetDiv.className = 'asset-container';
+async function createAssetLog() {
+    const container = document.getElementById('main-content-area');
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Loading assets...</p>';
 
-            const header = document.createElement('div');
-            header.className = 'asset-header';
-            header.innerHTML = `<span>Asset: ${assetName}</span><span class="arrow">▼</span>`;
-            
-            const rowsDiv = document.createElement('div');
-            rowsDiv.className = 'rows-container';
-            rowsDiv.id = `asset-${assetName.replace(/\s+/g, '-')}`;
+    // 1. Fetch Asset and Location data from Supabase
+    // Replace 'Assets' with your actual table name
+    const { data: assets, error } = await _supabase
+        .from('Assets') 
+        .select('asset_name, location')
+        .order('asset_name', { ascending: true });
 
-            header.onclick = () => {
-                const isHidden = rowsDiv.classList.toggle('hidden');
-                header.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
-            };
-
-            // Add 5 initial blank rows per asset
-            addRows(rowsDiv, assetName, 5);
-
-            const addBtn = document.createElement('button');
-            addBtn.className = 'tool-btn';
-            addBtn.style.margin = "10px";
-            addBtn.innerText = "+ Add Entry";
-            addBtn.onclick = () => addRows(rowsDiv, assetName, 1, true);
-
-            assetDiv.appendChild(header);
-            assetDiv.appendChild(rowsDiv);
-            rowsDiv.appendChild(addBtn);
-            container.appendChild(assetDiv);
-        });
+    if (error) {
+        console.error("Error fetching assets:", error);
+        container.innerHTML = '<p style="text-align:center; color:red;">Error loading assets.</p>';
+        return;
     }
 
+    container.innerHTML = ''; // Clear loading message
+
+    // 2. Loop through the database results to create accordions
+    assets.forEach(item => {
+        const assetDiv = document.createElement('div');
+        assetDiv.className = 'asset-container';
+
+        const header = document.createElement('div');
+        header.className = 'asset-header';
+        
+        // --- NEW HEADER FORMAT ---
+        header.innerHTML = `
+            <span>Asset: ${item.asset_name} | Location: ${item.location}</span>
+            <span class="arrow">▶</span>
+        `;
+        
+        const rowsDiv = document.createElement('div');
+        rowsDiv.className = 'rows-container hidden'; // Hidden by default
+        rowsDiv.id = `asset-${item.asset_name.replace(/\s+/g, '-')}`;
+
+        header.onclick = () => {
+            const isHidden = rowsDiv.classList.toggle('hidden');
+            header.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
+            
+            // Optimization: Only load rows when first opened
+            if (!isHidden && rowsDiv.children.length === 1) { // 1 because of the "Add" button
+                loadSealEntries(rowsDiv, item.asset_name);
+            }
+        };
+
+        // Add the "+ Add Entry" button
+        const addBtn = document.createElement('button');
+        addBtn.className = 'tool-btn';
+        addBtn.style.margin = "10px";
+        addBtn.innerText = "+ Add Entry";
+        addBtn.onclick = (e) => {
+            e.stopPropagation();
+            addBlankRow(rowsDiv, item.asset_name, true);
+        };
+
+        assetDiv.appendChild(header);
+        assetDiv.appendChild(rowsDiv);
+        rowsDiv.appendChild(addBtn);
+        container.appendChild(assetDiv);
+    });
+}
     function addRows(container, assetName, count, prepend = false) {
     const anchor = container.querySelector('.add-rows-btn');
     
