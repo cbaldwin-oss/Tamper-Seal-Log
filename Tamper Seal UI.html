@@ -457,7 +457,7 @@ function renderFilteredLog() {
             assetDiv.className = 'asset-container';
             assetDiv.innerHTML = `
                 <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
-                    <span>Asset: ${assetName}</span><span class="arrow">▶</span>
+                    <span>${assetName}</span><span class="arrow">▶</span>
                 </div>
                 <div class="rows-container hidden" data-loaded="false"></div>`;
             areaContent.appendChild(assetDiv);
@@ -467,7 +467,7 @@ function renderFilteredLog() {
             const areaDiv = document.createElement('div');
             areaDiv.className = 'area-container';
             areaDiv.innerHTML = `<div class="area-header" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('.area-arrow').innerText = this.nextElementSibling.classList.contains('hidden') ? '▶' : '▼';">
-                <span>Area: ${areaName}</span><span class="area-arrow">▶</span>
+                <span>${areaName}</span><span class="area-arrow">▶</span>
             </div>`;
             areaDiv.appendChild(areaContent);
             container.appendChild(areaDiv);
