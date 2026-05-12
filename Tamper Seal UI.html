@@ -159,7 +159,7 @@ async function createAssetLog() {
     // 1. Fetch the data
     const { data: assets, error } = await _supabase
         .from('Assets') 
-        .select('asset_name, Location')
+        .select('asset_name, location')
         .order('asset_name', { ascending: true });
 
     if (error) {
