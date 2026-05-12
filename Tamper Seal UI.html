@@ -99,6 +99,33 @@
     padding-right: 15px;
     flex: 1;
 }
+/* Row Color Logic */
+.row-intact {
+    background-color: #c8e6c9 !important; /* Green */
+}
+.row-intact textarea, .row-intact select {
+    background-color: #c8e6c9 !important;
+    color: #1b5e20 !important;
+}
+
+.row-broken {
+    background-color: #ffcdd2 !important; /* Red */
+}
+.row-broken textarea, .row-broken select {
+    background-color: #ffcdd2 !important;
+    color: #b71c1c !important;
+}
+
+.row-removed {
+    background-color: #f5f5f5 !important; /* Grey */
+    text-decoration: line-through;
+    color: #757575 !important;
+}
+.row-removed textarea, .row-removed select {
+    background-color: #f5f5f5 !important;
+    color: #757575 !important;
+    text-decoration: line-through;
+}
     </style>
 </head>
 <body>
@@ -260,7 +287,6 @@ function renderEntries(container, entries) {
         const row = document.createElement('div');
         row.className = 'cell-row';
         
-        // Build row columns from database entry
         row.innerHTML = `
             <textarea readonly>${entry.sub_area || ''}</textarea>
             <textarea readonly>${entry.seal_number || ''}</textarea>
@@ -278,8 +304,8 @@ function renderEntries(container, entries) {
             <textarea readonly>${entry.break_reason || ''}</textarea>
         `;
 
-        // Apply background colors based on status value
         const statusSelect = row.querySelector('.status-dropdown');
+        // This line now applies the color to the entire row
         applyStatusColor(statusSelect);
         
         container.appendChild(row);
@@ -287,11 +313,21 @@ function renderEntries(container, entries) {
 }
 
 function applyStatusColor(el) {
+    const row = el.closest('.cell-row');
+    if (!row) return;
+
     const val = el.value.toLowerCase();
-    el.classList.remove('bg-green', 'bg-red', 'bg-yellow');
-    if (val.includes("intact") || val.includes("pass")) el.classList.add('bg-green');
-    else if (val.includes("broken") || val.includes("fail")) el.classList.add('bg-red');
-    else if (val.includes("void")) el.classList.add('bg-yellow');
+
+    // Reset row classes
+    row.classList.remove('row-intact', 'row-broken', 'row-removed');
+
+    if (val.includes("intact") || val.includes("pass")) {
+        row.classList.add('row-intact');
+    } else if (val.includes("broken") || val.includes("fail")) {
+        row.classList.add('row-broken');
+    } else if (val.includes("removed") || val.includes("replaced") || val.includes("void")) {
+        row.classList.add('row-removed');
+    }
 }
 
 // Global toggle functions
