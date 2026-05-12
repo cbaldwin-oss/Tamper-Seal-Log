@@ -156,28 +156,34 @@ async function createAssetLog() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '<p style="text-align:center; padding:20px;">Loading assets...</p>';
 
-    // Fetch Asset and Location data from Supabase
+    // 1. Fetch the data
     const { data: assets, error } = await _supabase
         .from('Assets') 
-        .select('asset_name, location')
+        .select('asset_name, Location')
         .order('asset_name', { ascending: true });
 
     if (error) {
         console.error("Error fetching assets:", error);
-        container.innerHTML = '<p style="text-align:center; color:red;">Error loading assets. Check RLS policies.</p>';
+        container.innerHTML = '<p style="text-align:center; color:red;">Error loading assets.</p>';
         return;
     }
 
     container.innerHTML = ''; 
 
-    assets.forEach(item => {
+    // 2. Filter for Unique Assets using a Map
+    // This uses asset_name as the key to ensure uniqueness
+    const uniqueAssets = Array.from(new Map(assets.map(item => [item.asset_name, item])).values());
+
+    // 3. Loop through the unique list to create accordions
+    uniqueAssets.forEach(item => {
         const assetDiv = document.createElement('div');
         assetDiv.className = 'asset-container';
 
         const header = document.createElement('div');
         header.className = 'asset-header';
+        
         header.innerHTML = `
-            <span>Asset: ${item.asset_name} | Location: ${item.location}</span>
+            <span>Asset: ${item.asset_name} | Location: ${item.Location}</span>
             <span class="arrow">▶</span>
         `;
         
@@ -189,7 +195,7 @@ async function createAssetLog() {
             const isHidden = rowsDiv.classList.toggle('hidden');
             header.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
             
-            // Populate blank rows if empty
+            // Build rows if they don't exist yet
             if (!isHidden && rowsDiv.querySelectorAll('.cell-row').length === 0) {
                 addRows(rowsDiv, item.asset_name, 5);
             }
