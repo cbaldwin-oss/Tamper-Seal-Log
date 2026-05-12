@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asset Tamper Seal Log</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
-    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* MATCHING LAUNCHPAD STYLING */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: #f8f9fa; }
@@ -145,8 +145,8 @@
     </div>
 
 <script>
-
-const SUPABASE_URL = 'https://jrhrmntpfxoarulcnbqz.supabase.co/rest/v1/';
+// 1. Corrected URL (removed /rest/v1/)
+const SUPABASE_URL = 'https://jrhrmntpfxoarulcnbqz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyaHJtbnRwZnhvYXJ1bGNuYnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAyNDUsImV4cCI6MjA5NDE2NjI0NX0.Gbru98OZX5n3gfiRHyQFl-UzzC2SJ9Gi0gjb_HD__SE';
 
 const { createClient } = supabase;
@@ -156,8 +156,7 @@ async function createAssetLog() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '<p style="text-align:center; padding:20px;">Loading assets...</p>';
 
-    // 1. Fetch Asset and Location data from Supabase
-    // Replace 'Assets' with your actual table name
+    // Fetch Asset and Location data from Supabase
     const { data: assets, error } = await _supabase
         .from('Assets') 
         .select('asset_name, location')
@@ -165,48 +164,44 @@ async function createAssetLog() {
 
     if (error) {
         console.error("Error fetching assets:", error);
-        container.innerHTML = '<p style="text-align:center; color:red;">Error loading assets.</p>';
+        container.innerHTML = '<p style="text-align:center; color:red;">Error loading assets. Check RLS policies.</p>';
         return;
     }
 
-    container.innerHTML = ''; // Clear loading message
+    container.innerHTML = ''; 
 
-    // 2. Loop through the database results to create accordions
     assets.forEach(item => {
         const assetDiv = document.createElement('div');
         assetDiv.className = 'asset-container';
 
         const header = document.createElement('div');
         header.className = 'asset-header';
-        
-        // --- NEW HEADER FORMAT ---
         header.innerHTML = `
             <span>Asset: ${item.asset_name} | Location: ${item.location}</span>
             <span class="arrow">▶</span>
         `;
         
         const rowsDiv = document.createElement('div');
-        rowsDiv.className = 'rows-container hidden'; // Hidden by default
+        rowsDiv.className = 'rows-container hidden'; 
         rowsDiv.id = `asset-${item.asset_name.replace(/\s+/g, '-')}`;
 
         header.onclick = () => {
             const isHidden = rowsDiv.classList.toggle('hidden');
             header.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
             
-            // Optimization: Only load rows when first opened
-            if (!isHidden && rowsDiv.children.length === 1) { // 1 because of the "Add" button
-                loadSealEntries(rowsDiv, item.asset_name);
+            // Populate blank rows if empty
+            if (!isHidden && rowsDiv.querySelectorAll('.cell-row').length === 0) {
+                addRows(rowsDiv, item.asset_name, 5);
             }
         };
 
-        // Add the "+ Add Entry" button
         const addBtn = document.createElement('button');
         addBtn.className = 'tool-btn';
         addBtn.style.margin = "10px";
         addBtn.innerText = "+ Add Entry";
         addBtn.onclick = (e) => {
             e.stopPropagation();
-            addBlankRow(rowsDiv, item.asset_name, true);
+            addRows(rowsDiv, item.asset_name, 1);
         };
 
         assetDiv.appendChild(header);
@@ -215,82 +210,54 @@ async function createAssetLog() {
         container.appendChild(assetDiv);
     });
 }
-    function addRows(container, assetName, count, prepend = false) {
-    const anchor = container.querySelector('.add-rows-btn');
+
+function addRows(container, assetName, count) {
+    const addBtn = container.querySelector('.tool-btn');
     
     for (let i = 0; i < count; i++) {
         const row = document.createElement('div');
         row.className = 'cell-row';
         
-        // Match the 7 specific columns in order
         row.innerHTML = `
             <textarea placeholder="Seal #"></textarea>
-            
             <textarea placeholder="YYYY-MM-DD"></textarea>
-            
             <textarea placeholder="Initials/Name"></textarea>
-            
             <select class="status-dropdown" onchange="applyStatusColor(this)">
                 <option value="">Select...</option>
                 <option value="Intact">Intact (Pass)</option>
                 <option value="Broken">Broken (Fail)</option>
                 <option value="Void">Void</option>
             </select>
-            
             <textarea placeholder="Date Broken"></textarea>
-            
             <textarea placeholder="User/Entity"></textarea>
-            
-            <textarea placeholder="Reason for breaking seal..."></textarea>
-            
+            <textarea placeholder="Reason..."></textarea>
             <button class="delete-btn" onclick="this.parentElement.remove()">×</button>
         `;
 
-        if (anchor) container.insertBefore(row, anchor);
+        if (addBtn) container.insertBefore(row, addBtn);
         else container.appendChild(row);
     }
 }
 
-// Helper to apply the LaunchPad color logic to the Status column
 function applyStatusColor(el) {
     const val = el.value.toLowerCase();
     el.classList.remove('bg-green', 'bg-red', 'bg-yellow');
-    
-    if (val.includes("intact") || val.includes("pass")) {
-        el.classList.add('bg-green'); // Green for Pass
-    } else if (val.includes("broken") || val.includes("fail")) {
-        el.classList.add('bg-red');   // Red for Fail
-    } else if (val.includes("void")) {
-        el.classList.add('bg-yellow'); // Yellow for Warnings/Holds
-    }
+    if (val.includes("intact")) el.classList.add('bg-green');
+    else if (val.includes("broken")) el.classList.add('bg-red');
+    else if (val.includes("void")) el.classList.add('bg-yellow');
 }
 
-    function updateStatus(el) {
-        const val = el.value;
-        el.classList.remove('bg-green', 'bg-red', 'bg-yellow');
-        
-        if (val === "Intact") el.classList.add('bg-green');
-        else if (val === "Broken") el.classList.add('bg-red');
-        else if (val === "Removed") el.classList.add('bg-yellow');
+function expandAll() {
+    document.querySelectorAll('.rows-container').forEach(c => c.classList.remove('hidden'));
+    document.querySelectorAll('.arrow').forEach(a => a.innerText = '▼');
+}
 
-        document.getElementById('saveIndicator').innerText = "Saving...";
-        setTimeout(() => {
-            document.getElementById('saveIndicator').innerText = "Saved at " + new Date().toLocaleTimeString();
-        }, 800);
-    }
+function collapseAll() {
+    document.querySelectorAll('.rows-container').forEach(c => c.classList.add('hidden'));
+    document.querySelectorAll('.arrow').forEach(a => a.innerText = '▶');
+}
 
-    function expandAll() {
-        document.querySelectorAll('.rows-container').forEach(c => c.classList.remove('hidden'));
-        document.querySelectorAll('.arrow').forEach(a => a.innerText = '▼');
-    }
-
-    function collapseAll() {
-        document.querySelectorAll('.rows-container').forEach(c => c.classList.add('hidden'));
-        document.querySelectorAll('.arrow').forEach(a => a.innerText = '▶');
-    }
-
-    window.onload = createAssetLog;
+window.onload = createAssetLog;
 </script>
-
 </body>
 </html>
