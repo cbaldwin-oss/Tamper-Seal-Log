@@ -320,32 +320,34 @@ function addRows(container, assetName, count) {
 
 async function createAssetLog() {
     const container = document.getElementById('main-content-area');
-    container.innerHTML = '<p style="text-align:center; padding:20px;">Refueling Area Data...</p>';
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning all entries for Areas and Assets...</p>';
 
-    // 1. Fetch all unique Asset/Location pairs
-    const { data: assets, error: assetErr } = await _supabase
-        .from('Assets') 
+    // 1. Fetch the Area and Asset names from the main log table
+    // We fetch up to 10,000 rows to ensure we don't miss any folders
+    const { data: allRecords, error: fetchErr } = await _supabase
+        .from('Assets') // Ensure this is your main data table
         .select('asset_name, location')
-        .order('location', { ascending: true });
+        .range(0, 9999); 
 
-    if (assetErr) {
-        container.innerHTML = '<p style="text-align:center; color:red;">Error loading asset hierarchy.</p>';
+    if (fetchErr) {
+        console.error("Error scanning entries:", fetchErr);
+        container.innerHTML = '<p style="text-align:center; color:red;">Error loading log hierarchy.</p>';
         return;
     }
 
     container.innerHTML = ''; 
 
-    // 2. Identify Unique Areas (Locations)
-    const uniqueAreas = [...new Set(assets.map(item => item.location))];
+    // 2. Identify every unique Area (Location)
+    const uniqueAreaNames = [...new Set(allRecords.map(item => item.location || 'Unassigned'))].sort();
 
-    uniqueAreas.forEach(areaName => {
+    uniqueAreaNames.forEach(areaName => {
         // Create Area Container
         const areaDiv = document.createElement('div');
         areaDiv.className = 'area-container';
 
         const areaHeader = document.createElement('div');
         areaHeader.className = 'area-header';
-        areaHeader.innerHTML = `<span>Area: ${areaName || 'Unassigned'}</span><span class="area-arrow">▶</span>`;
+        areaHeader.innerHTML = `<span>Area: ${areaName}</span><span class="area-arrow">▶</span>`;
         
         const areaContent = document.createElement('div');
         areaContent.className = 'area-content hidden';
@@ -355,29 +357,29 @@ async function createAssetLog() {
             areaHeader.querySelector('.area-arrow').innerText = isHidden ? '▶' : '▼';
         };
 
-        // 3. Filter Assets belonging to this Area
-        const areaAssets = assets.filter(a => a.location === areaName);
-        const uniqueAreaAssets = Array.from(new Map(areaAssets.map(item => [item.asset_name, item])).values());
+        // 3. Find every unique Asset that belongs to this specific Area
+        const assetsInThisArea = allRecords.filter(r => (r.location || 'Unassigned') === areaName);
+        const uniqueAssetNames = [...new Set(assetsInThisArea.map(r => r.asset_name))].sort();
 
-        uniqueAreaAssets.forEach(asset => {
+        uniqueAssetNames.forEach(assetName => {
             const assetDiv = document.createElement('div');
             assetDiv.className = 'asset-container';
 
             const assetHeader = document.createElement('div');
             assetHeader.className = 'asset-header';
-            assetHeader.innerHTML = `<span>Asset: ${asset.asset_name}</span><span class="arrow">▶</span>`;
+            assetHeader.innerHTML = `<span>Asset: ${assetName}</span><span class="arrow">▶</span>`;
             
             const rowsDiv = document.createElement('div');
             rowsDiv.className = 'rows-container hidden';
-            rowsDiv.setAttribute('data-loaded', 'false'); // Lazy load tracker
+            rowsDiv.setAttribute('data-loaded', 'false'); // For Lazy Loading
 
             assetHeader.onclick = async () => {
                 const isHidden = rowsDiv.classList.toggle('hidden');
                 assetHeader.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
 
-                // LAZY LOAD: Fetch 10,000 rows only when opened
+                // LAZY LOAD: Only fetch the full row details when clicked
                 if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
-                    await fetchAndRender(rowsDiv, asset.asset_name);
+                    await fetchAndRender(rowsDiv, assetName);
                 }
             };
 
