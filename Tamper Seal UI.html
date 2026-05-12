@@ -174,7 +174,7 @@ async function createAssetLog() {
 
     // 2. Fetch All Row Entries
     const { data: entries, error: entryErr } = await _supabase
-        .from('TamperSealEntries')
+        .from('TamperSealLog')
         .select('*');
 
     if (assetErr || entryErr) {
