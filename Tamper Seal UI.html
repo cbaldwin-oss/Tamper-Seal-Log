@@ -257,9 +257,10 @@ async function createAssetLog() {
         .order('asset_name', { ascending: true });
 
     // 2. Fetch All Row Entries
-    const { data: entries, error: entryErr } = await _supabase
-        .from('Assets')
-        .select('*');
+const { data: entries, error: entryErr } = await _supabase
+    .from('Assets') 
+    .select('*')
+    .range(0, 3000);
 
     if (assetErr || entryErr) {
         container.innerHTML = '<p style="text-align:center; color:red;">Error loading data.</p>';
