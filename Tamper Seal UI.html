@@ -322,21 +322,27 @@ async function createAssetLog() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning 10,000 entries for Areas and Assets...</p>';
 
-    // 1. Fetch the Area and Asset names from the main log table (up to 10,000 rows)
+    // 1. Fetch using the correct case-sensitive column name 'Location'
     const { data: allRecords, error: fetchErr } = await _supabase
         .from('Assets') 
-        .select('asset_name, location')
+        .select('asset_name, Location') // Ensure this matches your DB exactly
         .range(0, 9999); 
 
     if (fetchErr) {
+        console.error("Scan Error:", fetchErr);
         container.innerHTML = '<p style="text-align:center; color:red;">Error loading log hierarchy.</p>';
         return;
     }
 
     container.innerHTML = ''; 
 
-    // 2. Identify unique Areas (Locations)
-    const uniqueAreaNames = [...new Set(allRecords.map(item => item.location || 'Unassigned'))].sort();
+    // 2. Robust Unique Location Identification
+    // We trim whitespace and handle potential casing differences (e.g., "Area A" vs "area a")
+    const uniqueAreaNames = [...new Set(allRecords.map(item => {
+        // Fallback check for both property casings
+        const loc = item.Location || item.location || 'Unassigned';
+        return loc.toString().trim(); // Remove hidden spaces
+    }))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent' }));
 
     uniqueAreaNames.forEach(areaName => {
         const areaDiv = document.createElement('div');
@@ -354,8 +360,12 @@ async function createAssetLog() {
             areaHeader.querySelector('.area-arrow').innerText = isHidden ? '▶' : '▼';
         };
 
-        // 3. Filter Unique Assets belonging to this Area
-        const assetsInThisArea = allRecords.filter(r => (r.location || 'Unassigned') === areaName);
+        // 3. Filter Assets belonging to this Area using the same cleaned logic
+        const assetsInThisArea = allRecords.filter(r => {
+            const loc = r.Location || r.location || 'Unassigned';
+            return loc.toString().trim() === areaName;
+        });
+        
         const uniqueAssetNames = [...new Set(assetsInThisArea.map(r => r.asset_name))].sort();
 
         uniqueAssetNames.forEach(assetName => {
@@ -368,13 +378,12 @@ async function createAssetLog() {
             
             const rowsDiv = document.createElement('div');
             rowsDiv.className = 'rows-container hidden';
-            rowsDiv.setAttribute('data-loaded', 'false'); // Lazy load tracker
+            rowsDiv.setAttribute('data-loaded', 'false');
 
             assetHeader.onclick = async () => {
                 const isHidden = rowsDiv.classList.toggle('hidden');
                 assetHeader.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
 
-                // LAZY LOAD: Fetch actual log info only when opened
                 if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
                     await fetchAndRender(rowsDiv, assetName);
                 }
