@@ -182,6 +182,47 @@
     padding: 10px 0;         /* Adjust padding to help with vertical balance */
     height: 100%;            /* Ensure it fills the centered row */
 }
+
+/* AREA ACCORDION STYLES */
+.area-container { 
+    margin: 20px auto; 
+    width: 95%; 
+    border: 2px solid #333; 
+    border-radius: 8px; 
+    background: #f1f3f4; 
+    overflow: hidden; 
+}
+
+.area-header { 
+    background-color: #333; 
+    color: white; 
+    padding: 15px 25px; 
+    cursor: pointer; 
+    display: flex; 
+    justify-content: space-between; 
+    font-weight: bold; 
+    font-size: 24px; 
+}
+
+.area-content { 
+    padding: 10px; 
+}
+
+.area-content.hidden { 
+    display: none; 
+}
+
+/* Ensure Asset headers look like sub-items */
+.asset-container { 
+    margin: 10px auto; 
+    width: 98%; 
+    border: 1px solid #d6445a; 
+}
+
+.asset-header { 
+    font-size: 18px; 
+    padding: 10px 20px; 
+}
     </style>
 </head>
 <body>
@@ -246,79 +287,6 @@ async function initApp() {
     await createAssetLog();
 }
     
-async function createAssetLog() {
-    const container = document.getElementById('main-content-area');
-    container.innerHTML = '<p style="text-align:center; padding:20px;">Refueling Log Headers...</p>';
-
-    // 1. Fetch only the unique Asset Headers
-    const { data: assets, error: assetErr } = await _supabase
-        .from('Assets') 
-        .select('asset_name, location')
-        .order('asset_name', { ascending: true });
-
-    if (assetErr) {
-        container.innerHTML = '<p style="text-align:center; color:red;">Error loading assets.</p>';
-        return;
-    }
-
-    container.innerHTML = ''; 
-
-    const uniqueAssets = Array.from(new Map(assets.map(item => [item.asset_name, item])).values());
-
-    uniqueAssets.forEach(item => {
-        const assetDiv = document.createElement('div');
-        assetDiv.className = 'asset-container';
-
-        const header = document.createElement('div');
-        header.className = 'asset-header';
-        header.innerHTML = `
-            <span>Asset: ${item.asset_name} | Location: ${item.location}</span>
-            <span class="arrow">▶</span>
-        `;
-        
-        const rowsDiv = document.createElement('div');
-        rowsDiv.className = 'rows-container hidden'; 
-        rowsDiv.id = `asset-${item.asset_name.replace(/\s+/g, '-')}`;
-        // Track if this folder has already loaded its data
-        rowsDiv.setAttribute('data-loaded', 'false');
-
-        header.onclick = async () => {
-            const isHidden = rowsDiv.classList.toggle('hidden');
-            header.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
-
-            // --- LAZY LOADING LOGIC ---
-            // Only fetch if opening for the first time
-            if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
-                await fetchAndRender(rowsDiv, item.asset_name);
-            }
-        };
-
-        assetDiv.appendChild(header);
-        assetDiv.appendChild(rowsDiv);
-        container.appendChild(assetDiv);
-    });
-}
-
-async function fetchAndRender(container, assetName) {
-    container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">Loading entries...</p>';
-
-    // Fetch entries for THIS specific asset with a 10,000 row limit
-    const { data: entries, error } = await _supabase
-        .from('Assets') // Ensure this is your actual entries table name
-        .select('*')
-        .eq('asset_name', assetName)
-        .range(0, 9999); // Fetches up to 10,000 rows
-
-    if (error) {
-        console.error("Fetch Error:", error);
-        container.innerHTML = '<p style="color:red; padding:10px;">Error loading data.</p>';
-        return;
-    }
-
-    container.innerHTML = ''; // Clear the "Loading..." message
-    renderEntries(container, entries);
-    container.setAttribute('data-loaded', 'true'); // Prevent duplicate fetches
-}
 
 function addRows(container, assetName, count) {
     const addBtn = container.querySelector('.tool-btn');
@@ -350,6 +318,100 @@ function addRows(container, assetName, count) {
     }
 }
 
+async function createAssetLog() {
+    const container = document.getElementById('main-content-area');
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Refueling Area Data...</p>';
+
+    // 1. Fetch all unique Asset/Location pairs
+    const { data: assets, error: assetErr } = await _supabase
+        .from('Assets') 
+        .select('asset_name, location')
+        .order('location', { ascending: true });
+
+    if (assetErr) {
+        container.innerHTML = '<p style="text-align:center; color:red;">Error loading asset hierarchy.</p>';
+        return;
+    }
+
+    container.innerHTML = ''; 
+
+    // 2. Identify Unique Areas (Locations)
+    const uniqueAreas = [...new Set(assets.map(item => item.location))];
+
+    uniqueAreas.forEach(areaName => {
+        // Create Area Container
+        const areaDiv = document.createElement('div');
+        areaDiv.className = 'area-container';
+
+        const areaHeader = document.createElement('div');
+        areaHeader.className = 'area-header';
+        areaHeader.innerHTML = `<span>Area: ${areaName || 'Unassigned'}</span><span class="area-arrow">▶</span>`;
+        
+        const areaContent = document.createElement('div');
+        areaContent.className = 'area-content hidden';
+
+        areaHeader.onclick = () => {
+            const isHidden = areaContent.classList.toggle('hidden');
+            areaHeader.querySelector('.area-arrow').innerText = isHidden ? '▶' : '▼';
+        };
+
+        // 3. Filter Assets belonging to this Area
+        const areaAssets = assets.filter(a => a.location === areaName);
+        const uniqueAreaAssets = Array.from(new Map(areaAssets.map(item => [item.asset_name, item])).values());
+
+        uniqueAreaAssets.forEach(asset => {
+            const assetDiv = document.createElement('div');
+            assetDiv.className = 'asset-container';
+
+            const assetHeader = document.createElement('div');
+            assetHeader.className = 'asset-header';
+            assetHeader.innerHTML = `<span>Asset: ${asset.asset_name}</span><span class="arrow">▶</span>`;
+            
+            const rowsDiv = document.createElement('div');
+            rowsDiv.className = 'rows-container hidden';
+            rowsDiv.setAttribute('data-loaded', 'false'); // Lazy load tracker
+
+            assetHeader.onclick = async () => {
+                const isHidden = rowsDiv.classList.toggle('hidden');
+                assetHeader.querySelector('.arrow').innerText = isHidden ? '▶' : '▼';
+
+                // LAZY LOAD: Fetch 10,000 rows only when opened
+                if (!isHidden && rowsDiv.getAttribute('data-loaded') === 'false') {
+                    await fetchAndRender(rowsDiv, asset.asset_name);
+                }
+            };
+
+            assetDiv.appendChild(assetHeader);
+            assetDiv.appendChild(rowsDiv);
+            areaContent.appendChild(assetDiv);
+        });
+
+        areaDiv.appendChild(areaHeader);
+        areaDiv.appendChild(areaContent);
+        container.appendChild(areaDiv);
+    });
+}
+
+async function fetchAndRender(container, assetName) {
+    container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">Loading up to 10,000 entries...</p>';
+
+    // Fetch entries with the high range limit
+    const { data: entries, error } = await _supabase
+        .from('Assets') // Ensure this points to your table with individual log entries
+        .select('*')
+        .eq('asset_name', assetName)
+        .range(0, 9999); // Fetches up to 10,000 rows
+
+    if (error) {
+        container.innerHTML = '<p style="color:red; padding:10px;">Error loading data.</p>';
+        return;
+    }
+
+    container.innerHTML = ''; 
+    renderEntries(container, entries);
+    container.setAttribute('data-loaded', 'true');
+}
+
 function renderEntries(container, entries) {
     if (entries.length === 0) {
         container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">No tamper seal records found.</p>';
@@ -359,28 +421,20 @@ function renderEntries(container, entries) {
     entries.forEach(entry => {
         const row = document.createElement('div');
         row.className = 'cell-row';
-        
         row.innerHTML = `
             <textarea readonly>${entry.sub_area || ''}</textarea>
             <textarea readonly>${entry.seal_number || ''}</textarea>
             <textarea readonly>${entry.inspection_date || ''}</textarea>
             <textarea readonly>${entry.signoff || ''}</textarea>
             <textarea readonly>${entry.inspection_notes || ''}</textarea>
-            
             <select class="status-dropdown" disabled>
                 <option value="${entry.status || ''}">${entry.status || 'Select...'}</option>
-                ${dropdownData.status.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
             </select>
-            
             <textarea readonly>${entry.break_date || ''}</textarea>
             <textarea readonly>${entry.responsible_party || ''}</textarea>
             <textarea readonly>${entry.break_reason || ''}</textarea>
         `;
-
-        const statusSelect = row.querySelector('.status-dropdown');
-        // This line now applies the color to the entire row
-        applyStatusColor(statusSelect);
-        
+        applyStatusColor(row.querySelector('.status-dropdown'));
         container.appendChild(row);
     });
 }
