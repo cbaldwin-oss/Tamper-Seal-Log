@@ -285,6 +285,7 @@
 
 <div class="subheader">
     <div>
+        <button class="tool-btn" onclick="expandAllZones()">Expand All Zones</button>
         <button class="tool-btn" onclick="expandAll()">Expand All Assets</button>
         <button class="tool-btn" style="border-color:#1b5e20; color:#1b5e20;" onclick="collapseAll()">Collapse All</button>
     </div>
@@ -455,11 +456,12 @@ function renderFilteredLog() {
             visibleAssets++;
             const assetDiv = document.createElement('div');
             assetDiv.className = 'asset-container';
-            assetDiv.innerHTML = `
-                <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
-                    <span>${assetName}</span><span class="arrow">▶</span>
-                </div>
-                <div class="rows-container hidden" data-loaded="false"></div>`;
+// Inside renderFilteredLog, where assetDiv is created:
+assetDiv.innerHTML = `
+    <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
+        <span>Asset: ${assetName}</span><span class="arrow">▶</span>
+    </div>
+    <div class="rows-container hidden" data-loaded="false" data-asset-name="${assetName}"></div>`;
             areaContent.appendChild(assetDiv);
         });
 
@@ -555,11 +557,46 @@ function applyStatusColor(el) {
     else if (val.includes("removed") || val.includes("replaced") || val.includes("void")) row.classList.add('row-removed');
 }
 
-function expandAll() {
-    document.querySelectorAll('.area-content, .rows-container').forEach(c => c.classList.remove('hidden'));
-    document.querySelectorAll('.area-arrow, .arrow').forEach(a => a.innerText = '▼');
+/**
+ * Expands only the top-level Area/Zone containers.
+ */
+function expandAllZones() {
+    document.querySelectorAll('.area-content').forEach(c => c.classList.remove('hidden'));
+    document.querySelectorAll('.area-arrow').forEach(a => a.innerText = '▼');
 }
 
+/**
+ * Expands all Areas and Assets, then triggers a data fetch for any
+ * asset that hasn't been loaded yet.
+ */
+async function expandAll() {
+    // 1. Visually expand everything first
+    document.querySelectorAll('.area-content, .rows-container').forEach(c => c.classList.remove('hidden'));
+    document.querySelectorAll('.area-arrow, .arrow').forEach(a => a.innerText = '▼');
+
+    // 2. Identify all asset containers that haven't loaded data
+    const containers = document.querySelectorAll('.rows-container');
+    const loadPromises = [];
+
+    containers.forEach(container => {
+        if (container.getAttribute('data-loaded') === 'false') {
+            const assetName = container.getAttribute('data-asset-name');
+            if (assetName) {
+                // Trigger the fetch and render process
+                loadPromises.push(fetchAndRender(container, assetName));
+            }
+        }
+    });
+
+    // 3. Execute all loads in parallel for efficiency
+    if (loadPromises.length > 0) {
+        await Promise.all(loadPromises);
+    }
+}
+
+/**
+ * Collapses all levels back to the default state.
+ */
 function collapseAll() {
     document.querySelectorAll('.area-content, .rows-container').forEach(c => c.classList.add('hidden'));
     document.querySelectorAll('.area-arrow, .arrow').forEach(a => a.innerText = '▶');
