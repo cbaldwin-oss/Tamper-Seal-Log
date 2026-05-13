@@ -291,7 +291,7 @@
     </div>
     <div>
         <span id="saveIndicator">Synced</span>
-        <button class="tool-btn">Export CSV</button>
+        <button class="tool-btn" onclick="exportToCSV()">Export CSV</button>
     </div>
 </div>
 
@@ -338,6 +338,69 @@ let activeFilters = {
 
 async function initApp() {
     await fetchHierarchyData();
+}
+
+function exportToCSV() {
+    // 1. Filter the data based on current active filters
+    const targetLocs = activeFilters.locations;
+    const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
+
+    const filteredData = allHierarchyRecords.filter(r => {
+        // Location Filter check
+        const loc = (r.Location || r.location || 'Unassigned').trim();
+        const matchesLoc = targetLocs.has('All') || targetLocs.has(loc);
+
+        // Status Filter check
+        const stat = (r.status || '').toLowerCase();
+        const matchesStat = activeFilters.statuses.has('All') || 
+                            targetStats.some(filter => stat.includes(filter));
+
+        return matchesLoc && matchesStat;
+    });
+
+    if (filteredData.length === 0) {
+        alert("No data available to export with the current filters.");
+        return;
+    }
+
+    // 2. Define CSV Headers (matching your UI columns)
+    const headers = [
+        "Area", "Asset", "Sub Area", "Seal #", "Inspection Date", 
+        "Signoff", "Inspection Notes", "Status", "Break Date", 
+        "Responsible Party", "Break Reason"
+    ];
+
+    // 3. Map the data to CSV rows
+    const csvRows = filteredData.map(r => [
+        `"${(r.Location || r.location || 'Unassigned').trim()}"`,
+        `"${r.asset_name || ''}"`,
+        `"${r.sub_area || ''}"`,
+        `"${r.seal_number || ''}"`,
+        `"${r.inspection_date || ''}"`,
+        `"${r.signoff || ''}"`,
+        `"${r.inspection_notes || ''}"`,
+        `"${r.status || ''}"`,
+        `"${r.break_date || ''}"`,
+        `"${r.responsible_party || ''}"`,
+        `"${r.break_reason || ''}"`
+    ].join(','));
+
+    // 4. Combine headers and rows
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+
+    // 5. Trigger the download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Tamper_Seal_Log_Export_${timestamp}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 async function fetchHierarchyData() {
