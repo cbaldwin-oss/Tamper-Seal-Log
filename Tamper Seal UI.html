@@ -670,16 +670,16 @@ async function initApp() {
 
 async function fetchHierarchyData() {
     const container = document.getElementById('main-content-area');
-    container.innerHTML = '<p style="text-align:center; padding:20px;">Building hierarchy...</p>';
+    container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning hierarchy...</p>';
 
     let allRecords = [];
     let from = 0, to = 999, fetchMore = true;
 
-    // Only fetch the columns needed to build the Area/Asset structure
+    // We fetch the minimum columns required for Filters and Search to work
     while (fetchMore && allRecords.length < 10000) {
         const { data, error } = await _supabase
             .from('Assets')
-            .select('location, asset_name') // Only fetch hierarchy columns
+            .select('id, location, asset_name, status, sub_area, seal_number, inspection_notes, signoff') 
             .range(from, to);
             
         if (error) {
@@ -963,10 +963,10 @@ async function renderFilteredLog() {
     const query = activeFilters.search;
 
     const uniqueAreas = [...new Set(allHierarchyRecords.map(r => (r.Location || r.location || 'Unassigned').trim()))].sort();
-    
     const loadPromises = [];
 
     uniqueAreas.forEach(areaName => {
+        // 1. Filter Area Visibility
         if (!targetLocs.has('All') && !targetLocs.has(areaName)) return;
 
         const areaRecords = allHierarchyRecords.filter(r => (r.Location || r.location || 'Unassigned').trim() === areaName);
@@ -980,10 +980,12 @@ async function renderFilteredLog() {
         uniqueAssetNames.forEach(assetName => {
             let assetRecords = areaRecords.filter(r => r.asset_name === assetName);
             
+            // 2. Filter Asset Visibility by Status
             if (!activeFilters.statuses.has('All')) {
                 assetRecords = assetRecords.filter(r => targetStats.some(f => (r.status || '').toLowerCase().includes(f)));
             }
 
+            // 3. Filter Asset Visibility by Search Query
             if (query !== '') {
                 assetRecords = assetRecords.filter(r => {
                     const searchStr = `${r.asset_name} ${r.Location || r.location} ${r.seal_number} ${r.sub_area} ${r.inspection_notes} ${r.signoff}`.toLowerCase();
@@ -991,6 +993,7 @@ async function renderFilteredLog() {
                 });
             }
 
+            // If no seals in this asset match the filters, don't show the asset container
             if (assetRecords.length === 0) return;
 
             visibleAssetsInArea++;
@@ -1007,9 +1010,9 @@ async function renderFilteredLog() {
             
             areaContent.appendChild(assetDiv);
 
+            // Automatically load data if searching
             if (query !== '') {
                 const rowsDiv = assetDiv.querySelector('.rows-container');
-                // Push promise to array to ensure we wait for rows to build before indexing
                 loadPromises.push(fetchAndRender(rowsDiv, assetName));
             }
         });
@@ -1024,10 +1027,8 @@ async function renderFilteredLog() {
         }
     });
 
-    // Wait for all search-related data to finish loading
     if (loadPromises.length > 0) await Promise.all(loadPromises);
 }
-
 async function toggleAsset(header, assetName) {
     const rowsDiv = header.nextElementSibling;
     const isHidden = rowsDiv.classList.toggle('hidden');
