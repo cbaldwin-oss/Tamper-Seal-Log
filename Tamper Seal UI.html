@@ -435,6 +435,29 @@ body.is-editing .edit-only-cell {
 body.is-editing .frozen-grid .edit-only-header { 
     display: block; 
 }
+/* 1. Use more specific selectors to ensure they hide correctly */
+.cell-row .edit-only-cell { 
+    display: none !important; 
+}
+
+/* 2. Show them ONLY when the body has 'is-editing' */
+body.is-editing .cell-row .edit-only-cell { 
+    display: flex !important; 
+}
+
+/* 3. Do the same for the headers in the red frozen bar */
+.frozen-grid .edit-only-header {
+    display: none !important;
+}
+
+body.is-editing .frozen-grid .edit-only-header { 
+    display: block !important; 
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
     </style>
 </head>
 <body>
