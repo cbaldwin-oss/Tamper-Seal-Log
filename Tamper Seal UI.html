@@ -458,39 +458,72 @@ body.is-editing .frozen-grid .edit-only-header {
     font-weight: bold;
     text-transform: uppercase;
 }
-/* Bulk Add Modal Styles */
+/* Optimized Bulk Add Modal Styles */
+#addModal .modal-content {
+    width: 650px;
+    padding: 0; /* Remove internal padding to allow header/footer backgrounds */
+    overflow: hidden;
+    text-align: left;
+}
+
+#addModal h3 {
+    margin: 0;
+    background-color: #f1f3f4;
+    padding: 20px 30px;
+    border-bottom: 1px solid #dcdcdc;
+    color: #333;
+    font-size: 24px;
+}
+
 .bulk-add-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    text-align: left;
-    margin-top: 15px;
+    gap: 20px;
+    padding: 30px;
 }
+
 .bulk-add-grid label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: bold;
-    color: #555;
+    color: #444;
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
 }
-.bulk-add-grid input, .bulk-add-grid select, .bulk-add-grid textarea {
+
+/* Larger entry cells */
+.bulk-add-grid input, 
+.bulk-add-grid select {
     width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    height: 48px; /* Significantly taller inputs */
+    padding: 12px;
+    font-size: 16px; /* Larger text for readability */
+    border: 2px solid #ccc; /* Thicker borders */
+    border-radius: 6px;
     box-sizing: border-box;
 }
+
+.bulk-add-grid input:focus {
+    border-color: #d32f2f;
+    outline: none;
+}
+
 .full-width { grid-column: span 2; }
 
-/* Preview Header */
-.preview-banner {
-    background: #fff9c4;
-    padding: 15px;
-    border: 2px solid #fbc02d;
-    border-radius: 8px;
-    margin: 20px auto;
-    width: 95%;
-    text-align: center;
+/* Fixed Footer for Buttons */
+#addModal .modal-btns {
+    background-color: #f1f3f4;
+    padding: 20px 30px;
+    margin-top: 0;
+    border-top: 1px solid #dcdcdc;
+    display: flex;
+    justify-content: flex-end; /* Right-align buttons */
+    gap: 15px;
+}
+
+#addModal .modal-btns .tool-btn {
+    padding: 12px 24px;
+    font-size: 15px;
 }
     </style>
 </head>
@@ -521,32 +554,33 @@ body.is-editing .frozen-grid .edit-only-header {
         </div>
     </div>
     <div id="addModal" class="modal-overlay">
-    <div class="modal-content" style="width: 500px;">
+    <div class="modal-content">
         <h3>Bulk Add Tamper Seals</h3>
+        
         <div class="bulk-add-grid">
             <div>
                 <label>First Seal #</label>
-                <input type="number" id="startSeal" placeholder="e.g. 1001">
+                <input type="number" id="startSeal" placeholder="1001">
             </div>
             <div>
                 <label>Last Seal #</label>
-                <input type="number" id="endSeal" placeholder="e.g. 1010">
+                <input type="number" id="endSeal" placeholder="1010">
             </div>
             <div class="full-width">
                 <label>Omitted Numbers (comma separated)</label>
                 <input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007">
             </div>
             <div>
-                <label>Location</label>
-                <input type="text" id="newLocation" placeholder="Area Name">
+                <label>Location / Area</label>
+                <input type="text" id="newLocation" placeholder="Enter Area">
             </div>
             <div>
                 <label>Asset Name</label>
-                <input type="text" id="newAsset" placeholder="Asset Name">
+                <input type="text" id="newAsset" placeholder="Enter Asset">
             </div>
             <div>
                 <label>Sub Area</label>
-                <input type="text" id="newSubArea">
+                <input type="text" id="newSubArea" placeholder="e.g. Front Door">
             </div>
             <div>
                 <label>Inspection Date</label>
@@ -554,15 +588,16 @@ body.is-editing .frozen-grid .edit-only-header {
             </div>
             <div class="full-width">
                 <label>Signoff (Initials)</label>
-                <input type="text" id="newSignoff">
+                <input type="text" id="newSignoff" placeholder="Your Initials">
             </div>
         </div>
+
         <div class="modal-btns">
-            <button class="tool-btn" style="background-color: #1b5e20; color: white;" onclick="generatePreview()">Generate Preview</button>
             <button class="tool-btn" style="border-color:#757575; color:#757575;" onclick="closeAddModal()">Cancel</button>
+            <button class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20;" onclick="generatePreview()">Generate Preview</button>
         </div>
     </div>
-    </div>
+</div>
     <div>
         <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
     <button id="deleteBtn" class="tool-btn" style="display:none; border-color:#d32f2f; color:#d32f2f; margin-right:10px;" onclick="deleteSelected()">Delete Selected</button>
@@ -1317,7 +1352,7 @@ function generatePreview() {
     const omitted = omittedStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
 
     const commonData = {
-        Location: document.getElementById('newLocation').value,
+        location: document.getElementById('newLocation').value,
         asset_name: document.getElementById('newAsset').value,
         sub_area: document.getElementById('newSubArea').value,
         inspection_date: document.getElementById('newDate').value,
@@ -1379,7 +1414,7 @@ async function saveNewEntries() {
         const inputs = row.querySelectorAll('textarea, select');
         newRecords.push({
             asset_name: inputs[0].value,
-            Location: inputs[1].value,
+            location: inputs[1].value,
             sub_area: inputs[2].value,
             seal_number: inputs[3].value,
             inspection_date: inputs[4].value,
