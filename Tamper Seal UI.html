@@ -458,37 +458,38 @@ body.is-editing .frozen-grid .edit-only-header {
     font-weight: bold;
     text-transform: uppercase;
 }
-/* Updated 2-Column Bulk Add Modal Styling */
+/* Cleaned & Consolidated Bulk Add Styling */
 #addModal .modal-content {
-    width: 1500px; /* Reduced width for 2-column layout */
+    width: 1000px !important; 
     padding: 0;
     overflow: hidden;
-    text-align: left;
     background-color: white; 
-    border: 3px solid #d32f2f; /* Maintain Red Wrap */
+    border: 3px solid #d32f2f;
     border-radius: 12px;
+    text-align: left; /* Ensures nothing inside is centered by default */
+}
+
+#addModal h3 {
+    margin: 0;
+    padding: 25px 50px; 
+    border-bottom: 1px solid #dcdcdc;
+    font-size: 24px;
+    color: #d32f2f;
+    text-align: left;
 }
 
 .bulk-add-grid {
     display: grid;
-    grid-template-columns: 1fr 1.5fr; /* Exactly 2 cells per line */
+    grid-template-columns: 1fr 1.5fr; 
     gap: 25px;
-    padding: 50px;
+    padding: 30px 50px; 
 }
 
-#addModal .modal-btns {
-    padding: 20px 30px;
-    border-top: 1px solid #dcdcdc;
+.bulk-add-grid div {
     display: flex;
-    flex-direction: column; /* Keep buttons stacked */
-    gap: 10px;
-    align-items: flex-end;
-}
-
-/* Optional: Make buttons the same width when stacked */
-#addModal .modal-btns .tool-btn {
-    width: 200px; /* Adjust width as needed */
-    text-align: center;
+    flex-direction: column;
+    align-items: flex-start; /* Standardizes left alignment for all labels/inputs */
+    width: 100%;
 }
 
 .bulk-add-grid label {
@@ -496,13 +497,14 @@ body.is-editing .frozen-grid .edit-only-header {
     font-weight: bold;
     color: #dc1313;
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 8px; /* Consistent gap for EVERY entry */
     text-transform: uppercase;
+    text-align: left; /* Explicitly prevents centering */
 }
 
 .bulk-add-grid input {
     width: 100%;
-    height: 55px; /* Larger entry cells */
+    height: 55px; 
     padding: 15px;
     font-size: 15px;
     border: 2px solid #ccc;
@@ -510,43 +512,18 @@ body.is-editing .frozen-grid .edit-only-header {
     box-sizing: border-box;
 }
 
-/* Helper to make Signoff span the remaining 2 columns in its row */
-.span-2 {
-    grid-column: span 2;
-}
-
 #addModal .modal-btns {
-    background-color: #ffffff; /* Light grey footer background */
-    padding: 20px 30px;
+    padding: 20px 50px;
     border-top: 1px solid #dcdcdc;
     display: flex;
-    gap: 15px;
-    flex-direction: column; /* Stacks the buttons vertically */
-    gap: 10px;              /* Space between the stacked buttons */
-    align-items: flex-end;  /* Keeps them aligned to the right */
-}
-.preview-banner {
-    background: #ffffff; /* Removed yellow background */
-    padding: 15px;
-    border: 3px solid #d32f2f; /* Wrapped in red */
-    border-radius: 8px;
-    margin: 20px auto;
-    width: 95%;
-    text-align: center;
-}
-#addModal h3 {
-    margin: 0;
-    /* Increased horizontal padding to 50px for a larger edge gap */
-    padding: 25px 50px; 
-    border-bottom: 1px solid #dcdcdc;
-    font-size: 24px;
-    color: #d32f2f;
-}
-/* Explicitly force labels to be on top */
-.bulk-add-grid div {
-    display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+#addModal .modal-btns .tool-btn {
+    width: 200px;
+    text-align: center;
 }
     </style>
 </head>
@@ -561,7 +538,6 @@ body.is-editing .frozen-grid .edit-only-header {
 
 <div class="subheader">
     <div style="display: flex; align-items: center;">
-        
         <button class="tool-btn" onclick="expandAllZones()">Expand All Zones</button>
         <button class="tool-btn" onclick="expandAll()">Expand All Assets</button>
         <button class="tool-btn" style="border-color:#1b5e20; color:#1b5e20;" onclick="collapseAll()">Collapse All</button>
@@ -575,20 +551,28 @@ body.is-editing .frozen-grid .edit-only-header {
             </div>
         </div>
     </div>
+
+    <div>
+        <button class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20; margin-right: 10px;" onclick="showAddModal()">+ Add Seals</button>
+        <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
+        <button id="deleteBtn" class="tool-btn" style="display:none; border-color:#d32f2f; color:#d32f2f; margin-right:10px;" onclick="deleteSelected()">Delete Selected</button>
+        <button class="tool-btn" onclick="showExportOptions()">Export</button>
+        <span id="saveIndicator">Synced</span>
+    </div>
+</div>
+
 <div id="addModal" class="modal-overlay">
     <div class="modal-content">
         <h3>Bulk Add Tamper Seals</h3>
-        
         <div class="bulk-add-grid">
-    <div>
-        <label>First Seal #</label>
-        <input type="number" id="startSeal" placeholder="e.g. 1001">
-    </div>
-    <div>
-        <label>Last Seal #</label>
-        <input type="number" id="endSeal" placeholder="e.g. 1010">
-    </div>
-
+            <div>
+                <label>First Seal #</label>
+                <input type="number" id="startSeal" placeholder="e.g. 1001">
+            </div>
+            <div>
+                <label>Last Seal #</label>
+                <input type="number" id="endSeal" placeholder="e.g. 1010">
+            </div>
             <div>
                 <label>Omitted Numbers</label>
                 <input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007">
@@ -597,7 +581,6 @@ body.is-editing .frozen-grid .edit-only-header {
                 <label>Location / Area</label>
                 <input type="text" id="newLocation" placeholder="Area Name">
             </div>
-
             <div>
                 <label>Asset Name</label>
                 <input type="text" id="newAsset" placeholder="Asset Name">
@@ -606,7 +589,6 @@ body.is-editing .frozen-grid .edit-only-header {
                 <label>Sub Area</label>
                 <input type="text" id="newSubArea" placeholder="Sub Area">
             </div>
-
             <div>
                 <label>Inspection Date</label>
                 <input type="date" id="newDate">
@@ -616,19 +598,10 @@ body.is-editing .frozen-grid .edit-only-header {
                 <input type="text" id="newSignoff" placeholder="Your Initials">
             </div>
         </div>
-
         <div class="modal-btns">
             <button class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20;" onclick="generatePreview()">Generate Preview</button>
             <button class="tool-btn" style="border-color:#757575; color:#757575;" onclick="closeAddModal()">Cancel</button>
         </div>
-    </div>
-</div>
-    <div>
-        <button class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20; margin-right: 10px;" onclick="showAddModal()">+ Add Seals</button>
-        <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
-    <button id="deleteBtn" class="tool-btn" style="display:none; border-color:#d32f2f; color:#d32f2f; margin-right:10px;" onclick="deleteSelected()">Delete Selected</button>
-        <button class="tool-btn" onclick="showExportOptions()">Export</button>
-        <span id="saveIndicator">Synced</span>
     </div>
 </div>
 
