@@ -412,6 +412,29 @@ body.is-editing .edit-only-cell {
 body.is-editing .frozen-grid .edit-only-header { 
     display: block; 
 }
+/* Hide Asset/Location columns by default */
+.edit-only-cell { 
+    display: none; 
+}
+
+/* Show them only when the body has the 'is-editing' class */
+body.is-editing .edit-only-cell { 
+    display: flex; 
+}
+
+/* Style for the header cells of these columns */
+.frozen-grid .edit-only-header {
+    flex: 1;
+    display: none;
+    text-align: center;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+body.is-editing .frozen-grid .edit-only-header { 
+    display: block; 
+}
     </style>
 </head>
 <body>
@@ -1014,20 +1037,20 @@ async function deleteSelected() {
  */
 async function saveAllChanges() {
     const rows = document.querySelectorAll('.cell-row');
-    const indicator = document.getElementById('saveIndicator');
     const updatePromises = [];
+    const indicator = document.getElementById('saveIndicator');
 
     rows.forEach(row => {
-        const rawId = row.dataset.id;
-        const id = isNaN(rawId) ? rawId : Number(rawId);
+        const id = Number(row.dataset.id);
         const inputs = row.querySelectorAll('textarea, select');
         
+        // Find the original record in local cache to compare
+        const original = allHierarchyRecords.find(r => Number(r.id) === id);
+        if (!original) return;
+
         const updatedData = {
-            // New fields at indices 0 and 1
             asset_name: inputs[0].value,
-            Location: inputs[1].value, 
-            
-            // Shifted original fields
+            Location: inputs[1].value,
             sub_area: inputs[2].value,
             seal_number: inputs[3].value,
             inspection_date: inputs[4].value,
@@ -1039,19 +1062,41 @@ async function saveAllChanges() {
             break_reason: inputs[10].value
         };
 
-        updatePromises.push(
-            _supabase.from('Assets').update(updatedData).eq('id', id)
-        );
+        // Check if any field has actually changed
+        const hasChanged = 
+            updatedData.asset_name !== (original.asset_name || '') ||
+            updatedData.Location !== (original.Location || original.location || '') ||
+            updatedData.sub_area !== (original.sub_area || '') ||
+            updatedData.seal_number !== (original.seal_number || '') ||
+            updatedData.inspection_date !== (original.inspection_date || '') ||
+            updatedData.signoff !== (original.signoff || '') ||
+            updatedData.inspection_notes !== (original.inspection_notes || '') ||
+            updatedData.status !== (original.status || '') ||
+            updatedData.break_date !== (original.break_date || '') ||
+            updatedData.responsible_party !== (original.responsible_party || '') ||
+            updatedData.break_reason !== (original.break_reason || '');
+
+        if (hasChanged) {
+            updatePromises.push(
+                _supabase.from('Assets').update(updatedData).eq('id', id)
+            );
+        }
     });
 
+    // If nothing changed, exit without error
+    if (updatePromises.length === 0) {
+        console.log("No changes to save.");
+        return; 
+    }
+
     const results = await Promise.all(updatePromises);
-    
     const errors = results.filter(r => r.error);
+    
     if (errors.length > 0) {
         console.error("Some updates failed:", errors);
-        alert("Failed to save some rows. Check console for RLS or naming errors.");
+        alert("Failed to save some rows. Check console for details.");
     } else {
-        // Full refresh to rebuild the hierarchy (since assets/locations might have changed)
+        // Full refresh to rebuild hierarchy in case Asset/Location names changed
         await fetchHierarchyData(); 
     }
 }
