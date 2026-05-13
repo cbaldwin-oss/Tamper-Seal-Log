@@ -978,20 +978,42 @@ async function saveAllChanges() {
  */
 async function deleteSelected() {
     const checkedRows = document.querySelectorAll('.row-selector:checked');
-    if (checkedRows.length === 0) return;
+    if (checkedRows.length === 0) {
+        alert("Please select at least one item to delete.");
+        return;
+    }
 
-    if (!confirm(`Are you sure you want to delete ${checkedRows.length} entries?`)) return;
+    if (!confirm(`Warning: This will permanently delete ${checkedRows.length} records. Continue?`)) return;
 
-    const idsToDelete = Array.from(checkedRows).map(cb => cb.closest('.cell-row').dataset.id);
+    const indicator = document.getElementById('saveIndicator');
+    indicator.innerText = "Deleting...";
 
-    const { error } = await _supabase.from('Assets').delete().in('id', idsToDelete);
+    // 1. Gather IDs and ensure they are numbers (common fix for Supabase int8 columns)
+    const idsToDelete = Array.from(checkedRows).map(cb => {
+        const id = cb.closest('.cell-row').dataset.id;
+        return isNaN(id) ? id : Number(id); // Convert to number if possible
+    });
 
-    if (!error) {
-        checkedRows.forEach(cb => cb.closest('.cell-row').remove());
-        // Update local hierarchy records so they aren't recreated on next filter
-        allHierarchyRecords = allHierarchyRecords.filter(r => !idsToDelete.includes(r.id.toString()));
+    // 2. Perform the deletion in the database
+    const { data, error } = await _supabase
+        .from('Assets') // Ensure this is your actual table name
+        .delete()
+        .in('id', idsToDelete); // Ensure your primary key column is lowercase 'id'
+
+    if (error) {
+        console.error("Supabase Delete Error:", error);
+        alert(`Delete failed: ${error.message}. Check browser console for details.`);
+        indicator.innerText = "Error";
     } else {
-        alert("Error deleting records: " + error.message);
+        // 3. Remove from UI
+        checkedRows.forEach(cb => cb.closest('.cell-row').remove());
+        
+        // 4. Clean up local hierarchy records so they don't reappear
+        allHierarchyRecords = allHierarchyRecords.filter(r => !idsToDelete.includes(r.id));
+        
+        console.log("Successfully deleted IDs:", idsToDelete);
+        indicator.innerText = "Deleted Successfully";
+        setTimeout(() => indicator.innerText = "Synced", 2000);
     }
 }
 
@@ -1000,13 +1022,13 @@ async function deleteSelected() {
  */
 function renderEntries(container, entries) {
     if (entries.length === 0) {
-        container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">No matching records found.</p>';
+        container.innerHTML = '<p style="padding: 10px;">No matching records found.</p>';
         return;
     }
     entries.forEach(entry => {
         const row = document.createElement('div');
         row.className = 'cell-row';
-        row.dataset.id = entry.id; // Store DB ID for saving/deleting
+        row.dataset.id = entry.id; // CRITICAL: This links the UI to the DB ID
         
         row.innerHTML = `
             <div class="edit-checkbox-cell">
@@ -1019,9 +1041,9 @@ function renderEntries(container, entries) {
             <textarea ${!isEditMode ? 'readonly' : ''}>${entry.inspection_notes || ''}</textarea>
             <select class="status-dropdown" ${!isEditMode ? 'disabled' : ''} onchange="applyStatusColor(this)">
                 <option value="${entry.status || ''}">${entry.status || 'Select...'}</option>
-                <option value="Intact">Intact (Pass)</option>
-                <option value="Broken">Broken (Fail)</option>
-                <option value="Void">Void</option>
+                <option value="Intact">Intact</option>
+                <option value="Broken">Broken</option>
+                <option value="Removed">Removed</option>
             </select>
             <textarea ${!isEditMode ? 'readonly' : ''}>${entry.break_date || ''}</textarea>
             <textarea ${!isEditMode ? 'readonly' : ''}>${entry.responsible_party || ''}</textarea>
