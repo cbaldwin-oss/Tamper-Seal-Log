@@ -458,27 +458,47 @@ body.is-editing .frozen-grid .edit-only-header {
     font-weight: bold;
     text-transform: uppercase;
 }
-/* Updated 3-Column Bulk Add Modal Styles */
+/* Updated Bulk Add Modal Styling */
 #addModal .modal-content {
-    width: 850px; /* Widened to fit 3 columns comfortably */
+    width: 850px;
     padding: 0;
     overflow: hidden;
     text-align: left;
+    background-color: white; /* Set clean white background */
+    border: 3px solid #d32f2f; /* Wrap the entire box in red */
+    border-radius: 12px; /* Smooth rounded corners */
 }
 
 #addModal h3 {
     margin: 0;
-    background-color: #f1f3f4; /* Light grey header background */
+    /* background-color: #f1f3f4; - REMOVED GRAY BOX */
     padding: 20px 30px;
     border-bottom: 1px solid #dcdcdc;
     font-size: 22px;
+    color: #d32f2f; /* Changed text color to match red theme */
 }
 
 .bulk-add-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* Creates three equal columns */
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     padding: 30px;
+}
+
+#addModal .modal-btns {
+    /* background-color: #f1f3f4; - REMOVED GRAY BOX */
+    padding: 20px 30px;
+    border-top: 1px solid #dcdcdc;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+/* Optional: Make buttons the same width when stacked */
+#addModal .modal-btns .tool-btn {
+    width: 200px; /* Adjust width as needed */
+    text-align: center;
 }
 
 .bulk-add-grid label {
@@ -514,6 +534,15 @@ body.is-editing .frozen-grid .edit-only-header {
     flex-direction: column; /* Stacks the buttons vertically */
     gap: 10px;              /* Space between the stacked buttons */
     align-items: flex-end;  /* Keeps them aligned to the right */
+}
+.preview-banner {
+    background: #ffffff; /* Removed yellow background */
+    padding: 15px;
+    border: 3px solid #d32f2f; /* Wrapped in red */
+    border-radius: 8px;
+    margin: 20px auto;
+    width: 95%;
+    text-align: center;
 }
     </style>
 </head>
