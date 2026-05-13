@@ -312,6 +312,59 @@
     color: #888;
     font-size: 14px;
 }
+/* Search Bar & Navigation Layout */
+.subheader div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Space between buttons and search bar */
+}
+
+.search-container {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0 8px;
+    width: 320px; /* Increased for buttons */
+}
+
+.search-nav-btns {
+    display: flex;
+    gap: 2px;
+    border-left: 1px solid #eee;
+    padding-left: 5px;
+    margin-left: 5px;
+}
+
+.search-nav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #d32f2f;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.search-nav-btn:disabled {
+    color: #ccc;
+}
+
+.match-counter {
+    font-size: 11px;
+    color: #666;
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+/* Instance Highlighting */
+.highlight-match {
+    outline: 3px solid #ffeb3b !important;
+    background-color: #fffde7 !important;
+    scroll-margin-top: 150px; /* Ensures row isn't hidden under header when scrolling */
+}
     </style>
 </head>
 <body>
@@ -324,13 +377,18 @@
 </div>
 
 <div class="subheader">
-    <div>
+    <div style="display: flex; align-items: center;">
         <button class="tool-btn" onclick="expandAllZones()">Expand All Zones</button>
         <button class="tool-btn" onclick="expandAll()">Expand All Assets</button>
         <button class="tool-btn" style="border-color:#1b5e20; color:#1b5e20;" onclick="collapseAll()">Collapse All</button>
 
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search by Seal #, Asset, or Notes..." oninput="handleSearch(this.value)">
+            <input type="text" id="searchInput" placeholder="Search entries..." oninput="handleSearch(this.value)">
+            <span id="matchCounter" class="match-counter">0/0</span>
+            <div class="search-nav-btns">
+                <button class="search-nav-btn" onclick="prevMatch()" title="Previous Instance">▲</button>
+                <button class="search-nav-btn" onclick="nextMatch()" title="Next Instance">▼</button>
+            </div>
         </div>
     </div>
     <div>
@@ -395,11 +453,6 @@ let activeFilters = {
 
 async function initApp() {
     await fetchHierarchyData();
-}
-
-function handleSearch(query) {
-    activeFilters.search = query.toLowerCase().trim();
-    renderFilteredLog();
 }
 
 async function fetchHierarchyData() {
@@ -616,19 +669,87 @@ function createFilterButtons() {
     container.appendChild(statGroup);
 }
 
-function renderFilteredLog() {
+let matchElements = [];
+let currentMatchIndex = -1;
+
+/**
+ * Enhanced Search Handler
+ */
+async function handleSearch(query) {
+    activeFilters.search = query.toLowerCase().trim();
+    
+    // 1. Re-render the UI based on filter
+    await renderFilteredLog();
+    
+    // 2. Identify all visible instances (rows)
+    updateMatchList();
+}
+
+/**
+ * Scans the visible UI for matching rows to populate navigation
+ */
+function updateMatchList() {
+    const query = activeFilters.search;
+    const counter = document.getElementById('matchCounter');
+    
+    if (!query) {
+        matchElements = [];
+        currentMatchIndex = -1;
+        counter.innerText = "0/0";
+        return;
+    }
+
+    // Collect all visible cell-rows as they represent the "instances"
+    matchElements = Array.from(document.querySelectorAll('.cell-row'));
+    currentMatchIndex = matchElements.length > 0 ? 0 : -1;
+    
+    updateMatchUI();
+}
+
+function updateMatchUI() {
+    const counter = document.getElementById('matchCounter');
+    
+    // Remove previous highlights
+    document.querySelectorAll('.highlight-match').forEach(el => el.classList.remove('highlight-match'));
+
+    if (matchElements.length > 0 && currentMatchIndex !== -1) {
+        counter.innerText = `${currentMatchIndex + 1}/${matchElements.length}`;
+        const target = matchElements[currentMatchIndex];
+        target.classList.add('highlight-match');
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        counter.innerText = "0/0";
+    }
+}
+
+function nextMatch() {
+    if (matchElements.length === 0) return;
+    currentMatchIndex = (currentMatchIndex + 1) % matchElements.length;
+    updateMatchUI();
+}
+
+function prevMatch() {
+    if (matchElements.length === 0) return;
+    currentMatchIndex = (currentMatchIndex - 1 + matchElements.length) % matchElements.length;
+    updateMatchUI();
+}
+
+/**
+ * Updated renderFilteredLog to be async so we can wait for search-triggered data loads
+ */
+async function renderFilteredLog() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '';
 
-    // Correctly reference the Sets for multiple filters
     const targetLocs = activeFilters.locations;
     const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
     const query = activeFilters.search;
 
     const uniqueAreas = [...new Set(allHierarchyRecords.map(r => (r.Location || r.location || 'Unassigned').trim()))].sort();
+    
+    const loadPromises = [];
 
     uniqueAreas.forEach(areaName => {
-        // Multi-Location filter check
         if (!targetLocs.has('All') && !targetLocs.has(areaName)) return;
 
         const areaRecords = allHierarchyRecords.filter(r => (r.Location || r.location || 'Unassigned').trim() === areaName);
@@ -636,23 +757,16 @@ function renderFilteredLog() {
 
         let visibleAssetsInArea = 0;
         const areaContent = document.createElement('div');
-        
-        // Auto-expand area if searching
         const isAreaHidden = query === '' ? 'hidden' : '';
         areaContent.className = `area-content ${isAreaHidden}`;
 
         uniqueAssetNames.forEach(assetName => {
             let assetRecords = areaRecords.filter(r => r.asset_name === assetName);
             
-            // 1. Filter by Statuses (Multi-select check)
             if (!activeFilters.statuses.has('All')) {
-                assetRecords = assetRecords.filter(r => {
-                    const s = (r.status || '').toLowerCase();
-                    return targetStats.some(filter => s.includes(filter));
-                });
+                assetRecords = assetRecords.filter(r => targetStats.some(f => (r.status || '').toLowerCase().includes(f)));
             }
 
-            // 2. Filter by Search Query
             if (query !== '') {
                 assetRecords = assetRecords.filter(r => {
                     const searchStr = `${r.asset_name} ${r.Location || r.location} ${r.seal_number} ${r.sub_area} ${r.inspection_notes} ${r.signoff}`.toLowerCase();
@@ -665,12 +779,9 @@ function renderFilteredLog() {
             visibleAssetsInArea++;
             const assetDiv = document.createElement('div');
             assetDiv.className = 'asset-container';
-            
-            // Auto-expand asset if searching
             const isRowsHidden = query === '' ? 'hidden' : '';
             const arrow = query === '' ? '▶' : '▼';
 
-            // Added data-asset-name so Expand All works correctly
             assetDiv.innerHTML = `
                 <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
                     <span>Asset: ${assetName}</span><span class="arrow">${arrow}</span>
@@ -679,10 +790,10 @@ function renderFilteredLog() {
             
             areaContent.appendChild(assetDiv);
 
-            // If searching, trigger immediate data load for this asset
             if (query !== '') {
                 const rowsDiv = assetDiv.querySelector('.rows-container');
-                fetchAndRender(rowsDiv, assetName);
+                // Push promise to array to ensure we wait for rows to build before indexing
+                loadPromises.push(fetchAndRender(rowsDiv, assetName));
             }
         });
 
@@ -690,15 +801,14 @@ function renderFilteredLog() {
             const areaDiv = document.createElement('div');
             areaDiv.className = 'area-container';
             const areaArrow = query === '' ? '▶' : '▼';
-            
-            areaDiv.innerHTML = `
-                <div class="area-header" onclick="toggleArea(this)">
-                    <span>Area: ${areaName}</span><span class="area-arrow">${areaArrow}</span>
-                </div>`;
+            areaDiv.innerHTML = `<div class="area-header" onclick="toggleArea(this)"><span>Area: ${areaName}</span><span class="area-arrow">${areaArrow}</span></div>`;
             areaDiv.appendChild(areaContent);
             container.appendChild(areaDiv);
         }
     });
+
+    // Wait for all search-related data to finish loading
+    if (loadPromises.length > 0) await Promise.all(loadPromises);
 }
 
 async function toggleAsset(header, assetName) {
