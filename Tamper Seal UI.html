@@ -620,14 +620,16 @@ function renderFilteredLog() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '';
 
-    const targetLoc = activeFilters.location;
-    const targetStat = activeFilters.status.toLowerCase();
+    // Correctly reference the Sets for multiple filters
+    const targetLocs = activeFilters.locations;
+    const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
     const query = activeFilters.search;
 
     const uniqueAreas = [...new Set(allHierarchyRecords.map(r => (r.Location || r.location || 'Unassigned').trim()))].sort();
 
     uniqueAreas.forEach(areaName => {
-        if (targetLoc !== 'All' && areaName !== targetLoc) return;
+        // Multi-Location filter check
+        if (!targetLocs.has('All') && !targetLocs.has(areaName)) return;
 
         const areaRecords = allHierarchyRecords.filter(r => (r.Location || r.location || 'Unassigned').trim() === areaName);
         const uniqueAssetNames = [...new Set(areaRecords.map(r => r.asset_name))].sort();
@@ -642,12 +644,15 @@ function renderFilteredLog() {
         uniqueAssetNames.forEach(assetName => {
             let assetRecords = areaRecords.filter(r => r.asset_name === assetName);
             
-            // 1. Filter by Status
-            if (targetStat !== 'all') {
-                assetRecords = assetRecords.filter(r => (r.status || '').toLowerCase().includes(targetStat));
+            // 1. Filter by Statuses (Multi-select check)
+            if (!activeFilters.statuses.has('All')) {
+                assetRecords = assetRecords.filter(r => {
+                    const s = (r.status || '').toLowerCase();
+                    return targetStats.some(filter => s.includes(filter));
+                });
             }
 
-            // 2. Filter by Search Query (Checking all major fields)
+            // 2. Filter by Search Query
             if (query !== '') {
                 assetRecords = assetRecords.filter(r => {
                     const searchStr = `${r.asset_name} ${r.Location || r.location} ${r.seal_number} ${r.sub_area} ${r.inspection_notes} ${r.signoff}`.toLowerCase();
@@ -661,15 +666,16 @@ function renderFilteredLog() {
             const assetDiv = document.createElement('div');
             assetDiv.className = 'asset-container';
             
-            // Auto-expand asset and load data if searching
+            // Auto-expand asset if searching
             const isRowsHidden = query === '' ? 'hidden' : '';
             const arrow = query === '' ? '▶' : '▼';
 
+            // Added data-asset-name so Expand All works correctly
             assetDiv.innerHTML = `
                 <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
                     <span>Asset: ${assetName}</span><span class="arrow">${arrow}</span>
                 </div>
-                <div class="rows-container ${isRowsHidden}" data-loaded="false"></div>`;
+                <div class="rows-container ${isRowsHidden}" data-loaded="false" data-asset-name="${assetName}"></div>`;
             
             areaContent.appendChild(assetDiv);
 
