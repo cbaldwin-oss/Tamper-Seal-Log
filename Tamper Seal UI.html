@@ -434,9 +434,8 @@ function runExport(type) {
  */
 function exportToPDF() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'pt', 'a4'); // Landscape orientation
+    const doc = new jsPDF('l', 'pt', 'a4'); 
 
-    // 1. Filter data based on active UI filters
     const targetLocs = activeFilters.locations;
     const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
 
@@ -449,13 +448,13 @@ function exportToPDF() {
         return matchesLoc && matchesStat;
     });
 
-    if (filteredData.length === 0) {
-        alert("No records found to export.");
-        return;
-    }
+    // 1. Updated Table Headers
+    const headers = [[
+        "Area", "Asset", "Sub Area", "Seal #", "Date", "Signoff", 
+        "Notes", "Status", "Break Date", "Responsible Party", "Reason"
+    ]];
 
-    // 2. Prepare Table Data
-    const headers = [["Area", "Asset", "Sub Area", "Seal #", "Date", "Signoff", "Notes", "Status", "Break Date"]];
+    // 2. Updated Table Body
     const body = filteredData.map(r => [
         (r.Location || r.location || 'Unassigned').trim(),
         r.asset_name || '',
@@ -465,10 +464,11 @@ function exportToPDF() {
         r.signoff || '',
         r.inspection_notes || '',
         r.status || '',
-        r.break_date || ''
+        r.break_date || '',
+        r.responsible_party || '', // Added
+        r.break_reason || ''      // Added
     ]);
 
-    // 3. Style and Save PDF
     doc.setFontSize(18);
     doc.text("Tamper Seal Inspection Log", 40, 40);
     doc.setFontSize(10);
@@ -479,12 +479,15 @@ function exportToPDF() {
         body: body,
         startY: 70,
         theme: 'striped',
-        headStyles: { fillColor: [211, 47, 47] }, // Matching Red Header
-        styles: { fontSize: 8, cellPadding: 3 }
+        headStyles: { fillColor: [211, 47, 47] },
+        styles: { fontSize: 7, cellPadding: 2 }, // Reduced size for 11-column fit
+        columnStyles: {
+            6: { cellWidth: 100 }, // Give 'Notes' more space
+            10: { cellWidth: 100 } // Give 'Reason' more space
+        }
     });
 
-    const timestamp = new Date().toISOString().split('T')[0];
-    doc.save(`Tamper_Seal_Log_${timestamp}.pdf`);
+    doc.save(`Tamper_Seal_Log_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
 /**
@@ -503,7 +506,14 @@ function exportToCSV() {
         return matchesLoc && matchesStat;
     });
 
-    const headers = ["Area", "Asset", "Sub Area", "Seal #", "Date", "Signoff", "Notes", "Status", "Break Date"];
+    // 1. Updated Headers (11 columns)
+    const headers = [
+        "Area", "Asset", "Sub Area", "Seal #", "Inspection Date", 
+        "Signoff", "Inspection Notes", "Status", "Break Date", 
+        "Responsible Party", "Break Reason"
+    ];
+
+    // 2. Updated Data Mapping (including the last two fields)
     const csvContent = [
         headers.join(','),
         ...filteredData.map(r => [
@@ -515,11 +525,13 @@ function exportToCSV() {
             `"${r.signoff || ''}"`,
             `"${r.inspection_notes || ''}"`,
             `"${r.status || ''}"`,
-            `"${r.break_date || ''}"`
+            `"${r.break_date || ''}"`,
+            `"${r.responsible_party || ''}"`, // Added
+            `"${r.break_reason || ''}"`       // Added
         ].join(','))
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
