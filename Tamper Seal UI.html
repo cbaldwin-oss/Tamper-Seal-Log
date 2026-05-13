@@ -983,18 +983,19 @@ async function deleteSelected() {
 }
 
 /**
- * Collects data from the UI and updates Supabase
+ * Optimized: Collects all data and performs ONE bulk request
  */
 async function saveAllChanges() {
     const rows = document.querySelectorAll('.cell-row');
     const updates = [];
 
+    // 1. Collect all rows into an array
     rows.forEach(row => {
         const rawId = row.dataset.id;
         const id = isNaN(rawId) ? rawId : Number(rawId);
         const inputs = row.querySelectorAll('textarea, select');
         
-        updates.push({
+        const updatedRow = {
             id: id,
             sub_area: inputs[0].value,
             seal_number: inputs[1].value,
@@ -1005,23 +1006,33 @@ async function saveAllChanges() {
             break_date: inputs[6].value,
             responsible_party: inputs[7].value,
             break_reason: inputs[8].value
-        });
+        };
+        updates.push(updatedRow);
+
+        // 2. Update the local hierarchy cache so we don't have to re-fetch from DB
+        const index = allHierarchyRecords.findIndex(r => Number(r.id) === id);
+        if (index !== -1) {
+            allHierarchyRecords[index] = { ...allHierarchyRecords[index], ...updatedRow };
+        }
     });
 
-    // Perform updates sequentially or in batches
-    for (const update of updates) {
-        const { error } = await _supabase
-            .from('Assets')
-            .update(update)
-            .eq('id', update.id);
-        
-        if (error) console.error("Update failed for ID:", update.id, error);
-    }
-    
-    // Final Refresh: This pulls the latest state from the DB
-    await fetchHierarchyData();
-}
+    if (updates.length === 0) return;
 
+    // 3. Perform a SINGLE bulk upsert request instead of a loop
+    const { error } = await _supabase
+        .from('Assets')
+        .upsert(updates); // Supabase handles multiple objects in one call
+    
+    if (error) {
+        console.error("Bulk save failed:", error);
+        alert("Save failed: " + error.message);
+    } else {
+        // 4. Re-render the UI and filters using the updated local cache
+        // This avoids the slow "Scanning 10,000 entries" process
+        createFilterButtons();
+        renderFilteredLog();
+    }
+}
 /**
  * Updated renderEntries to support ID tracking and Edit state
  */
