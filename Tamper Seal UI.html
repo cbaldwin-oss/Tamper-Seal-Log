@@ -365,6 +365,30 @@
     background-color: #fffde7 !important;
     scroll-margin-top: 150px; /* Ensures row isn't hidden under header when scrolling */
 }
+/* Edit Mode Styles */
+.edit-checkbox-cell { 
+    flex: 0 0 40px; 
+    display: none; 
+    justify-content: center; 
+    align-items: center; 
+    border-right: 1px solid #ccc;
+}
+
+body.is-editing .edit-checkbox-cell { display: flex; }
+
+body.is-editing .cell-row textarea, 
+body.is-editing .cell-row select {
+    background-color: #ffffff !important;
+    border: 1px solid #d32f2f !important;
+    cursor: text;
+}
+
+.frozen-grid .edit-header-cell {
+    flex: 0 0 40px;
+    display: none;
+}
+
+body.is-editing .frozen-grid .edit-header-cell { display: block; }
     </style>
 </head>
 <body>
@@ -392,6 +416,9 @@
         </div>
     </div>
     <div>
+        <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
+    <button id="deleteBtn" class="tool-btn" style="display:none; border-color:#d32f2f; color:#d32f2f; margin-right:10px;" onclick="deleteSelected()">Delete Selected</button>
+    <span id="saveIndicator">Synced</span>
         <span id="saveIndicator">Synced</span>
         <button class="tool-btn" onclick="showExportOptions()">Export</button>
     </div>
@@ -411,6 +438,7 @@
 
 <div class="frozen-bar">
     <div class="frozen-grid">
+        <div class="edit-header-cell"></div>
         <div class="header-cell">Sub Area</div>
         <span class="sep">|</span>
         <div class="header-cell">Seal #</div>
@@ -870,6 +898,106 @@ async function fetchAndRender(container, assetName) {
     container.setAttribute('data-loaded', 'true');
 }
 
+let isEditMode = false;
+
+/**
+ * Toggles the UI between Read-Only and Edit Mode
+ */
+async function toggleEditMode() {
+    const editBtn = document.getElementById('editBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const indicator = document.getElementById('saveIndicator');
+
+    if (!isEditMode) {
+        // ENTER EDIT MODE
+        isEditMode = true;
+        document.body.classList.add('is-editing');
+        editBtn.innerText = "Save Changes";
+        editBtn.style.backgroundColor = "#d32f2f";
+        editBtn.style.color = "white";
+        deleteBtn.style.display = "inline-block";
+        indicator.innerText = "Editing...";
+        
+        // Unlock all existing rows
+        document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = false);
+        document.querySelectorAll('.cell-row select').forEach(s => s.disabled = false);
+    } else {
+        // SAVE AND EXIT
+        indicator.innerText = "Saving...";
+        await saveAllChanges();
+        
+        isEditMode = false;
+        document.body.classList.remove('is-editing');
+        editBtn.innerText = "Edit";
+        editBtn.style.backgroundColor = "white";
+        editBtn.style.color = "#d32f2f";
+        deleteBtn.style.display = "none";
+        
+        // Relock all rows
+        document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = true);
+        document.querySelectorAll('.cell-row select').forEach(s => s.disabled = true);
+        indicator.innerText = "Synced";
+    }
+}
+
+/**
+ * Collects data from the UI and updates Supabase
+ */
+async function saveAllChanges() {
+    const rows = document.querySelectorAll('.cell-row');
+    const updates = [];
+
+    rows.forEach(row => {
+        const id = row.dataset.id;
+        const inputs = row.querySelectorAll('textarea, select');
+        updates.push({
+            id: id,
+            sub_area: inputs[0].value,
+            seal_number: inputs[1].value,
+            inspection_date: inputs[2].value,
+            signoff: inputs[3].value,
+            inspection_notes: inputs[4].value,
+            status: inputs[5].value,
+            break_date: inputs[6].value,
+            responsible_party: inputs[7].value,
+            break_reason: inputs[8].value
+        });
+    });
+
+    for (const update of updates) {
+        const { error } = await _supabase.from('Assets').update(update).eq('id', update.id);
+        if (error) console.error("Update failed for ID:", update.id, error);
+    }
+    
+    // Refresh local cache
+    await fetchHierarchyData();
+}
+
+/**
+ * Deletes checked rows from Supabase and UI
+ */
+async function deleteSelected() {
+    const checkedRows = document.querySelectorAll('.row-selector:checked');
+    if (checkedRows.length === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${checkedRows.length} entries?`)) return;
+
+    const idsToDelete = Array.from(checkedRows).map(cb => cb.closest('.cell-row').dataset.id);
+
+    const { error } = await _supabase.from('Assets').delete().in('id', idsToDelete);
+
+    if (!error) {
+        checkedRows.forEach(cb => cb.closest('.cell-row').remove());
+        // Update local hierarchy records so they aren't recreated on next filter
+        allHierarchyRecords = allHierarchyRecords.filter(r => !idsToDelete.includes(r.id.toString()));
+    } else {
+        alert("Error deleting records: " + error.message);
+    }
+}
+
+/**
+ * Updated renderEntries to support ID tracking and Edit state
+ */
 function renderEntries(container, entries) {
     if (entries.length === 0) {
         container.innerHTML = '<p style="font-size: 13px; color: #666; padding: 10px;">No matching records found.</p>';
@@ -878,18 +1006,26 @@ function renderEntries(container, entries) {
     entries.forEach(entry => {
         const row = document.createElement('div');
         row.className = 'cell-row';
+        row.dataset.id = entry.id; // Store DB ID for saving/deleting
+        
         row.innerHTML = `
-            <textarea readonly>${entry.sub_area || ''}</textarea>
-            <textarea readonly>${entry.seal_number || ''}</textarea>
-            <textarea readonly>${entry.inspection_date || ''}</textarea>
-            <textarea readonly>${entry.signoff || ''}</textarea>
-            <textarea readonly>${entry.inspection_notes || ''}</textarea>
-            <select class="status-dropdown" disabled>
+            <div class="edit-checkbox-cell">
+                <input type="checkbox" class="row-selector">
+            </div>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.sub_area || ''}</textarea>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.seal_number || ''}</textarea>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.inspection_date || ''}</textarea>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.signoff || ''}</textarea>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.inspection_notes || ''}</textarea>
+            <select class="status-dropdown" ${!isEditMode ? 'disabled' : ''} onchange="applyStatusColor(this)">
                 <option value="${entry.status || ''}">${entry.status || 'Select...'}</option>
+                <option value="Intact">Intact (Pass)</option>
+                <option value="Broken">Broken (Fail)</option>
+                <option value="Void">Void</option>
             </select>
-            <textarea readonly>${entry.break_date || ''}</textarea>
-            <textarea readonly>${entry.responsible_party || ''}</textarea>
-            <textarea readonly>${entry.break_reason || ''}</textarea>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.break_date || ''}</textarea>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.responsible_party || ''}</textarea>
+            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.break_reason || ''}</textarea>
         `;
         applyStatusColor(row.querySelector('.status-dropdown'));
         container.appendChild(row);
