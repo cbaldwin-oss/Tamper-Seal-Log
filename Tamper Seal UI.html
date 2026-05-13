@@ -458,6 +458,40 @@ body.is-editing .frozen-grid .edit-only-header {
     font-weight: bold;
     text-transform: uppercase;
 }
+/* Bulk Add Modal Styles */
+.bulk-add-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    text-align: left;
+    margin-top: 15px;
+}
+.bulk-add-grid label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+    display: block;
+    margin-bottom: 5px;
+}
+.bulk-add-grid input, .bulk-add-grid select, .bulk-add-grid textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.full-width { grid-column: span 2; }
+
+/* Preview Header */
+.preview-banner {
+    background: #fff9c4;
+    padding: 15px;
+    border: 2px solid #fbc02d;
+    border-radius: 8px;
+    margin: 20px auto;
+    width: 95%;
+    text-align: center;
+}
     </style>
 </head>
 <body>
@@ -483,6 +517,49 @@ body.is-editing .frozen-grid .edit-only-header {
                 <button class="search-nav-btn" onclick="nextMatch()" title="Next Instance">▼</button>
             </div>
         </div>
+    </div>
+    <div id="addModal" class="modal-overlay">
+    <div class="modal-content" style="width: 500px;">
+        <h3>Bulk Add Tamper Seals</h3>
+        <div class="bulk-add-grid">
+            <div>
+                <label>First Seal #</label>
+                <input type="number" id="startSeal" placeholder="e.g. 1001">
+            </div>
+            <div>
+                <label>Last Seal #</label>
+                <input type="number" id="endSeal" placeholder="e.g. 1010">
+            </div>
+            <div class="full-width">
+                <label>Omitted Numbers (comma separated)</label>
+                <input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007">
+            </div>
+            <div>
+                <label>Location</label>
+                <input type="text" id="newLocation" placeholder="Area Name">
+            </div>
+            <div>
+                <label>Asset Name</label>
+                <input type="text" id="newAsset" placeholder="Asset Name">
+            </div>
+            <div>
+                <label>Sub Area</label>
+                <input type="text" id="newSubArea">
+            </div>
+            <div>
+                <label>Inspection Date</label>
+                <input type="date" id="newDate">
+            </div>
+            <div class="full-width">
+                <label>Signoff (Initials)</label>
+                <input type="text" id="newSignoff">
+            </div>
+        </div>
+        <div class="modal-btns">
+            <button class="tool-btn" style="background-color: #1b5e20; color: white;" onclick="generatePreview()">Generate Preview</button>
+            <button class="tool-btn" style="border-color:#757575; color:#757575;" onclick="closeAddModal()">Cancel</button>
+        </div>
+    </div>
     </div>
     <div>
         <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
@@ -1214,6 +1291,117 @@ async function expandAll() {
 function collapseAll() {
     document.querySelectorAll('.area-content, .rows-container').forEach(c => c.classList.add('hidden'));
     document.querySelectorAll('.area-arrow, .arrow').forEach(a => a.innerText = '▶');
+}
+
+/**
+ * UI Controls for Add Modal
+ */
+function showAddModal() {
+    document.getElementById('addModal').style.display = 'flex';
+    document.getElementById('newDate').value = new Date().toISOString().split('T')[0];
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+/**
+ * Step 1: Generate the editable preview list
+ */
+function generatePreview() {
+    const start = parseInt(document.getElementById('startSeal').value);
+    const end = parseInt(document.getElementById('endSeal').value);
+    const omittedStr = document.getElementById('omittedSeals').value;
+    const omitted = omittedStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+    const commonData = {
+        Location: document.getElementById('newLocation').value,
+        asset_name: document.getElementById('newAsset').value,
+        sub_area: document.getElementById('newSubArea').value,
+        inspection_date: document.getElementById('newDate').value,
+        signoff: document.getElementById('newSignoff').value,
+        status: 'Intact'
+    };
+
+    if (isNaN(start) || isNaN(end) || start > end) {
+        alert("Please enter a valid seal range.");
+        return;
+    }
+
+    const previewEntries = [];
+    for (let i = start; i <= end; i++) {
+        if (omitted.includes(i)) continue;
+        previewEntries.push({ ...commonData, seal_number: i.toString() });
+    }
+
+    closeAddModal();
+    renderPreviewGrid(previewEntries);
+}
+
+/**
+ * Step 2: Show generated rows in the main area for final editing
+ */
+function renderPreviewGrid(entries) {
+    const container = document.getElementById('main-content-area');
+    container.innerHTML = `
+        <div class="preview-banner">
+            <h2>Review New Entries (${entries.length} rows)</h2>
+            <p>You can edit any cell below before saving. These items have not been added to the database yet.</p>
+            <button class="tool-btn" style="background-color: #1b5e20; color: white; padding: 10px 20px;" onclick="saveNewEntries()">Confirm & Save to Database</button>
+            <button class="tool-btn" style="margin-left:10px;" onclick="fetchHierarchyData()">Cancel & Discard</button>
+        </div>
+        <div id="preview-rows-container"></div>
+    `;
+
+    const rowsContainer = document.getElementById('preview-rows-container');
+    // We reuse the Edit Mode state to make textareas editable
+    const originalMode = isEditMode;
+    isEditMode = true; 
+    renderEntries(rowsContainer, entries);
+    isEditMode = originalMode;
+
+    // Remove checkboxes from preview (not needed for creation)
+    document.querySelectorAll('#preview-rows-container .edit-checkbox-cell').forEach(el => el.remove());
+    // Ensure Asset/Location are visible in preview
+    document.querySelectorAll('#preview-rows-container .edit-only-cell').forEach(el => el.style.display = 'flex');
+}
+
+/**
+ * Step 3: Save the previewed data to Supabase
+ */
+async function saveNewEntries() {
+    const rows = document.querySelectorAll('#preview-rows-container .cell-row');
+    const newRecords = [];
+
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('textarea, select');
+        newRecords.push({
+            asset_name: inputs[0].value,
+            Location: inputs[1].value,
+            sub_area: inputs[2].value,
+            seal_number: inputs[3].value,
+            inspection_date: inputs[4].value,
+            signoff: inputs[5].value,
+            inspection_notes: inputs[6].value,
+            status: inputs[7].value,
+            break_date: inputs[8].value,
+            responsible_party: inputs[9].value,
+            break_reason: inputs[10].value
+        });
+    });
+
+    const indicator = document.getElementById('saveIndicator');
+    indicator.innerText = "Creating...";
+
+    const { error } = await _supabase.from('Assets').insert(newRecords);
+
+    if (error) {
+        alert("Error creating records: " + error.message);
+        indicator.innerText = "Error";
+    } else {
+        indicator.innerText = "Created Successfully";
+        await fetchHierarchyData(); // Reload everything
+    }
 }
 
 window.onload = initApp;
