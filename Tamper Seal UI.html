@@ -827,24 +827,39 @@ async function fetchAndRender(container, assetName) {
     let from = 0, to = 999, fetchMore = true;
 
     while (fetchMore && entries.length < 10000) {
-        const { data, error } = await _supabase.from('Assets').select('*').eq('asset_name', assetName).range(from, to);
+        const { data, error } = await _supabase
+            .from('Assets')
+            .select('*')
+            .eq('asset_name', assetName)
+            .range(from, to);
+            
         if (error) return;
         entries = entries.concat(data);
         if (data.length < 1000) fetchMore = false;
         else { from += 1000; to += 1000; }
     }
 
-    // Apply multi-status filtering to individual rows
     let filteredData = entries;
+
+    // 1. Apply multi-status filtering
     if (!activeFilters.statuses.has('All')) {
         const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
-        filteredData = entries.filter(r => {
+        filteredData = filteredData.filter(r => {
             const s = (r.status || '').toLowerCase();
             return targetStats.some(filter => s.includes(filter));
         });
     }
 
-    // Sort: Broken first
+    // 2. ADDED: Apply search filtering to individual rows
+    const query = activeFilters.search;
+    if (query !== '') {
+        filteredData = filteredData.filter(r => {
+            const searchStr = `${r.asset_name} ${r.Location || r.location} ${r.seal_number} ${r.sub_area} ${r.inspection_notes} ${r.signoff}`.toLowerCase();
+            return searchStr.includes(query);
+        });
+    }
+
+    // 3. Sort: Broken first
     filteredData.sort((a, b) => {
         const getP = (s) => (s||'').toLowerCase().includes('broken') ? 1 : (s||'').toLowerCase().includes('intact') ? 2 : 3;
         return getP(a.status) - getP(b.status);
