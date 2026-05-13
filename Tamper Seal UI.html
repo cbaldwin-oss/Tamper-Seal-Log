@@ -458,32 +458,23 @@ body.is-editing .frozen-grid .edit-only-header {
     font-weight: bold;
     text-transform: uppercase;
 }
-/* Optimized Bulk Add Modal Styles */
+/* Updated 3-Column Bulk Add Modal Styles */
 #addModal .modal-content {
-    width: 650px;
-    padding: 0; /* Remove internal padding to allow header/footer backgrounds */
+    width: 850px; /* Widened to accommodate 3 columns comfortably */
+    padding: 0;
     overflow: hidden;
     text-align: left;
 }
 
-#addModal h3 {
-    margin: 0;
-    background-color: #f1f3f4;
-    padding: 20px 30px;
-    border-bottom: 1px solid #dcdcdc;
-    color: #333;
-    font-size: 24px;
-}
-
 .bulk-add-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr); /* Creates 3 equal columns */
     gap: 20px;
     padding: 30px;
 }
 
 .bulk-add-grid label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
     color: #444;
     display: block;
@@ -491,39 +482,19 @@ body.is-editing .frozen-grid .edit-only-header {
     text-transform: uppercase;
 }
 
-/* Larger entry cells */
-.bulk-add-grid input, 
-.bulk-add-grid select {
+.bulk-add-grid input {
     width: 100%;
-    height: 48px; /* Significantly taller inputs */
-    padding: 12px;
-    font-size: 16px; /* Larger text for readability */
-    border: 2px solid #ccc; /* Thicker borders */
+    height: 45px;
+    padding: 10px;
+    font-size: 15px;
+    border: 2px solid #ccc;
     border-radius: 6px;
     box-sizing: border-box;
 }
 
-.bulk-add-grid input:focus {
-    border-color: #d32f2f;
-    outline: none;
-}
-
-.full-width { grid-column: span 2; }
-
-/* Fixed Footer for Buttons */
-#addModal .modal-btns {
-    background-color: #f1f3f4;
-    padding: 20px 30px;
-    margin-top: 0;
-    border-top: 1px solid #dcdcdc;
-    display: flex;
-    justify-content: flex-end; /* Right-align buttons */
-    gap: 15px;
-}
-
-#addModal .modal-btns .tool-btn {
-    padding: 12px 24px;
-    font-size: 15px;
+/* Helper to make Signoff fill the remaining space in the 2-item row */
+.span-2 {
+    grid-column: span 2;
 }
     </style>
 </head>
@@ -553,40 +524,42 @@ body.is-editing .frozen-grid .edit-only-header {
             </div>
         </div>
     </div>
-    <div id="addModal" class="modal-overlay">
+<div id="addModal" class="modal-overlay">
     <div class="modal-content">
         <h3>Bulk Add Tamper Seals</h3>
         
         <div class="bulk-add-grid">
             <div>
                 <label>First Seal #</label>
-                <input type="number" id="startSeal" placeholder="1001">
+                <input type="number" id="startSeal" placeholder="e.g. 1001">
             </div>
             <div>
                 <label>Last Seal #</label>
-                <input type="number" id="endSeal" placeholder="1010">
-            </div>
-            <div class="full-width">
-                <label>Omitted Numbers (comma separated)</label>
-                <input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007">
+                <input type="number" id="endSeal" placeholder="e.g. 1010">
             </div>
             <div>
+                <label>Omitted Numbers</label>
+                <input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007">
+            </div>
+
+            <div>
                 <label>Location / Area</label>
-                <input type="text" id="newLocation" placeholder="Enter Area">
+                <input type="text" id="newLocation" placeholder="Area Name">
             </div>
             <div>
                 <label>Asset Name</label>
-                <input type="text" id="newAsset" placeholder="Enter Asset">
+                <input type="text" id="newAsset" placeholder="Asset Name">
             </div>
             <div>
                 <label>Sub Area</label>
-                <input type="text" id="newSubArea" placeholder="e.g. Front Door">
+                <input type="text" id="newSubArea" placeholder="Sub Area">
             </div>
+
             <div>
                 <label>Inspection Date</label>
                 <input type="date" id="newDate">
             </div>
-            <div class="full-width">
+            <div class="span-2">
                 <label>Signoff (Initials)</label>
                 <input type="text" id="newSignoff" placeholder="Your Initials">
             </div>
