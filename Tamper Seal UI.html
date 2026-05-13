@@ -940,39 +940,6 @@ async function toggleEditMode() {
 }
 
 /**
- * Collects data from the UI and updates Supabase
- */
-async function saveAllChanges() {
-    const rows = document.querySelectorAll('.cell-row');
-    const updates = [];
-
-    rows.forEach(row => {
-        const id = row.dataset.id;
-        const inputs = row.querySelectorAll('textarea, select');
-        updates.push({
-            id: id,
-            sub_area: inputs[0].value,
-            seal_number: inputs[1].value,
-            inspection_date: inputs[2].value,
-            signoff: inputs[3].value,
-            inspection_notes: inputs[4].value,
-            status: inputs[5].value,
-            break_date: inputs[6].value,
-            responsible_party: inputs[7].value,
-            break_reason: inputs[8].value
-        });
-    });
-
-    for (const update of updates) {
-        const { error } = await _supabase.from('Assets').update(update).eq('id', update.id);
-        if (error) console.error("Update failed for ID:", update.id, error);
-    }
-    
-    // Refresh local cache
-    await fetchHierarchyData();
-}
-
-/**
  * Deletes checked rows from Supabase and UI
  */
 async function deleteSelected() {
@@ -987,33 +954,72 @@ async function deleteSelected() {
     const indicator = document.getElementById('saveIndicator');
     indicator.innerText = "Deleting...";
 
-    // 1. Gather IDs and ensure they are numbers (common fix for Supabase int8 columns)
+    // 1. Gather IDs and convert to Number to match Supabase int8 types
     const idsToDelete = Array.from(checkedRows).map(cb => {
         const id = cb.closest('.cell-row').dataset.id;
-        return isNaN(id) ? id : Number(id); // Convert to number if possible
+        return isNaN(id) ? id : Number(id); 
     });
 
     // 2. Perform the deletion in the database
-    const { data, error } = await _supabase
-        .from('Assets') // Ensure this is your actual table name
+    const { error } = await _supabase
+        .from('Assets') 
         .delete()
         .in('id', idsToDelete); // Ensure your primary key column is lowercase 'id'
 
     if (error) {
         console.error("Supabase Delete Error:", error);
-        alert(`Delete failed: ${error.message}. Check browser console for details.`);
+        alert(`Delete failed: ${error.message}. Make sure RLS allows Deletes for your table.`);
         indicator.innerText = "Error";
     } else {
-        // 3. Remove from UI
+        // 3. Remove from UI immediately
         checkedRows.forEach(cb => cb.closest('.cell-row').remove());
         
-        // 4. Clean up local hierarchy records so they don't reappear
-        allHierarchyRecords = allHierarchyRecords.filter(r => !idsToDelete.includes(r.id));
+        // 4. Update local cache so re-renders don't bring them back
+        allHierarchyRecords = allHierarchyRecords.filter(r => !idsToDelete.includes(Number(r.id)));
         
-        console.log("Successfully deleted IDs:", idsToDelete);
         indicator.innerText = "Deleted Successfully";
         setTimeout(() => indicator.innerText = "Synced", 2000);
     }
+}
+
+/**
+ * Collects data from the UI and updates Supabase
+ */
+async function saveAllChanges() {
+    const rows = document.querySelectorAll('.cell-row');
+    const updates = [];
+
+    rows.forEach(row => {
+        const rawId = row.dataset.id;
+        const id = isNaN(rawId) ? rawId : Number(rawId);
+        const inputs = row.querySelectorAll('textarea, select');
+        
+        updates.push({
+            id: id,
+            sub_area: inputs[0].value,
+            seal_number: inputs[1].value,
+            inspection_date: inputs[2].value,
+            signoff: inputs[3].value,
+            inspection_notes: inputs[4].value,
+            status: inputs[5].value,
+            break_date: inputs[6].value,
+            responsible_party: inputs[7].value,
+            break_reason: inputs[8].value
+        });
+    });
+
+    // Perform updates sequentially or in batches
+    for (const update of updates) {
+        const { error } = await _supabase
+            .from('Assets')
+            .update(update)
+            .eq('id', update.id);
+        
+        if (error) console.error("Update failed for ID:", update.id, error);
+    }
+    
+    // Final Refresh: This pulls the latest state from the DB
+    await fetchHierarchyData();
 }
 
 /**
