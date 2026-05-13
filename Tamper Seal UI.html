@@ -510,8 +510,10 @@ body.is-editing .frozen-grid .edit-only-header {
     padding: 20px 30px;
     border-top: 1px solid #dcdcdc;
     display: flex;
-    justify-content: flex-end; /* Align buttons to the bottom right */
     gap: 15px;
+    flex-direction: column; /* Stacks the buttons vertically */
+    gap: 10px;              /* Space between the stacked buttons */
+    align-items: flex-end;  /* Keeps them aligned to the right */
 }
     </style>
 </head>
@@ -583,8 +585,8 @@ body.is-editing .frozen-grid .edit-only-header {
         </div>
 
         <div class="modal-btns">
-            <button class="tool-btn" style="border-color:#757575; color:#757575;" onclick="closeAddModal()">Cancel</button>
             <button class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20;" onclick="generatePreview()">Generate Preview</button>
+            <button class="tool-btn" style="border-color:#757575; color:#757575;" onclick="closeAddModal()">Cancel</button>
         </div>
     </div>
 </div>
