@@ -287,6 +287,31 @@
 }
 .modal-content h3 { margin-top: 0; color: #333; font-size: 20px; }
 .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+
+/* Search Bar Styling */
+.search-container {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-left: 10px;
+    width: 250px;
+}
+
+.search-container input {
+    border: none;
+    outline: none;
+    padding: 6px;
+    font-size: 13px;
+    width: 100%;
+}
+
+.search-container i {
+    color: #888;
+    font-size: 14px;
+}
     </style>
 </head>
 <body>
@@ -303,6 +328,10 @@
         <button class="tool-btn" onclick="expandAllZones()">Expand All Zones</button>
         <button class="tool-btn" onclick="expandAll()">Expand All Assets</button>
         <button class="tool-btn" style="border-color:#1b5e20; color:#1b5e20;" onclick="collapseAll()">Collapse All</button>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search by Seal #, Asset, or Notes..." oninput="handleSearch(this.value)">
+        </div>
     </div>
     <div>
         <span id="saveIndicator">Synced</span>
@@ -360,11 +389,17 @@ let allHierarchyRecords = [];
 // Change to Sets to track multiple active values
 let activeFilters = { 
     locations: new Set(['All']), 
-    statuses: new Set(['All']) 
+    statuses: new Set(['All']),
+    search: '' 
 };
 
 async function initApp() {
     await fetchHierarchyData();
+}
+
+function handleSearch(query) {
+    activeFilters.search = query.toLowerCase().trim();
+    renderFilteredLog();
 }
 
 async function fetchHierarchyData() {
@@ -539,6 +574,12 @@ function exportToCSV() {
     a.click();
 }
 
+function toggleArea(header) {
+    const content = header.nextElementSibling;
+    const isHidden = content.classList.toggle('hidden');
+    header.querySelector('.area-arrow').innerText = isHidden ? '▶' : '▼';
+}
+
 function createFilterButtons() {
     const container = document.getElementById('filter-container');
     container.innerHTML = '';
@@ -579,52 +620,75 @@ function renderFilteredLog() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '';
 
-    const targetLocs = activeFilters.locations;
-    const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
+    const targetLoc = activeFilters.location;
+    const targetStat = activeFilters.status.toLowerCase();
+    const query = activeFilters.search;
 
     const uniqueAreas = [...new Set(allHierarchyRecords.map(r => (r.Location || r.location || 'Unassigned').trim()))].sort();
 
     uniqueAreas.forEach(areaName => {
-        // Multi-Location filter
-        if (!targetLocs.has('All') && !targetLocs.has(areaName)) return;
+        if (targetLoc !== 'All' && areaName !== targetLoc) return;
 
         const areaRecords = allHierarchyRecords.filter(r => (r.Location || r.location || 'Unassigned').trim() === areaName);
         const uniqueAssetNames = [...new Set(areaRecords.map(r => r.asset_name))].sort();
 
-        let visibleAssets = 0;
+        let visibleAssetsInArea = 0;
         const areaContent = document.createElement('div');
-        areaContent.className = 'area-content hidden';
+        
+        // Auto-expand area if searching
+        const isAreaHidden = query === '' ? 'hidden' : '';
+        areaContent.className = `area-content ${isAreaHidden}`;
 
         uniqueAssetNames.forEach(assetName => {
-            const assetRecords = areaRecords.filter(r => r.asset_name === assetName);
+            let assetRecords = areaRecords.filter(r => r.asset_name === assetName);
             
-            // Multi-Status filter check
-            if (!activeFilters.statuses.has('All')) {
-                const hasMatch = assetRecords.some(r => {
-                    const s = (r.status || '').toLowerCase();
-                    return targetStats.some(filter => s.includes(filter));
-                });
-                if (!hasMatch) return;
+            // 1. Filter by Status
+            if (targetStat !== 'all') {
+                assetRecords = assetRecords.filter(r => (r.status || '').toLowerCase().includes(targetStat));
             }
 
-            visibleAssets++;
+            // 2. Filter by Search Query (Checking all major fields)
+            if (query !== '') {
+                assetRecords = assetRecords.filter(r => {
+                    const searchStr = `${r.asset_name} ${r.Location || r.location} ${r.seal_number} ${r.sub_area} ${r.inspection_notes} ${r.signoff}`.toLowerCase();
+                    return searchStr.includes(query);
+                });
+            }
+
+            if (assetRecords.length === 0) return;
+
+            visibleAssetsInArea++;
             const assetDiv = document.createElement('div');
             assetDiv.className = 'asset-container';
-// Inside renderFilteredLog, where assetDiv is created:
-assetDiv.innerHTML = `
-    <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
-        <span>Asset: ${assetName}</span><span class="arrow">▶</span>
-    </div>
-    <div class="rows-container hidden" data-loaded="false" data-asset-name="${assetName}"></div>`;
+            
+            // Auto-expand asset and load data if searching
+            const isRowsHidden = query === '' ? 'hidden' : '';
+            const arrow = query === '' ? '▶' : '▼';
+
+            assetDiv.innerHTML = `
+                <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
+                    <span>Asset: ${assetName}</span><span class="arrow">${arrow}</span>
+                </div>
+                <div class="rows-container ${isRowsHidden}" data-loaded="false"></div>`;
+            
             areaContent.appendChild(assetDiv);
+
+            // If searching, trigger immediate data load for this asset
+            if (query !== '') {
+                const rowsDiv = assetDiv.querySelector('.rows-container');
+                fetchAndRender(rowsDiv, assetName);
+            }
         });
 
-        if (visibleAssets > 0) {
+        if (visibleAssetsInArea > 0) {
             const areaDiv = document.createElement('div');
             areaDiv.className = 'area-container';
-            areaDiv.innerHTML = `<div class="area-header" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('.area-arrow').innerText = this.nextElementSibling.classList.contains('hidden') ? '▶' : '▼';">
-                <span>${areaName}</span><span class="area-arrow">▶</span>
-            </div>`;
+            const areaArrow = query === '' ? '▶' : '▼';
+            
+            areaDiv.innerHTML = `
+                <div class="area-header" onclick="toggleArea(this)">
+                    <span>Area: ${areaName}</span><span class="area-arrow">${areaArrow}</span>
+                </div>`;
             areaDiv.appendChild(areaContent);
             container.appendChild(areaDiv);
         }
