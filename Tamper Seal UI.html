@@ -6,6 +6,8 @@
     <title>Asset Tamper Seal Log</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         /* MATCHING LAUNCHPAD STYLING */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
@@ -272,6 +274,19 @@
     background: #333;
     border-color: #333;
 }
+
+/* Export Modal Styles */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center;
+    z-index: 2000;
+}
+.modal-content {
+    background: white; padding: 25px; border-radius: 8px; text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 320px;
+}
+.modal-content h3 { margin-top: 0; color: #333; font-size: 20px; }
+.modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -291,7 +306,19 @@
     </div>
     <div>
         <span id="saveIndicator">Synced</span>
-        <button class="tool-btn" onclick="exportToCSV()">Export CSV</button>
+        <button class="tool-btn" onclick="showExportOptions()">Export</button>
+    </div>
+</div>
+
+<div id="exportModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Export Log</h3>
+        <p>Select your preferred format:</p>
+        <div class="modal-btns">
+            <button class="tool-btn" onclick="runExport('csv')">CSV (Excel)</button>
+            <button class="tool-btn" style="border-color:#1976d2; color:#1976d2;" onclick="runExport('pdf')">PDF Report</button>
+            <button class="tool-btn" style="border-color:#757575; color:#757575;" onclick="closeExportModal()">Cancel</button>
+        </div>
     </div>
 </div>
 
@@ -340,69 +367,6 @@ async function initApp() {
     await fetchHierarchyData();
 }
 
-function exportToCSV() {
-    // 1. Filter the data based on current active filters
-    const targetLocs = activeFilters.locations;
-    const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
-
-    const filteredData = allHierarchyRecords.filter(r => {
-        // Location Filter check
-        const loc = (r.Location || r.location || 'Unassigned').trim();
-        const matchesLoc = targetLocs.has('All') || targetLocs.has(loc);
-
-        // Status Filter check
-        const stat = (r.status || '').toLowerCase();
-        const matchesStat = activeFilters.statuses.has('All') || 
-                            targetStats.some(filter => stat.includes(filter));
-
-        return matchesLoc && matchesStat;
-    });
-
-    if (filteredData.length === 0) {
-        alert("No data available to export with the current filters.");
-        return;
-    }
-
-    // 2. Define CSV Headers (matching your UI columns)
-    const headers = [
-        "Area", "Asset", "Sub Area", "Seal #", "Inspection Date", 
-        "Signoff", "Inspection Notes", "Status", "Break Date", 
-        "Responsible Party", "Break Reason"
-    ];
-
-    // 3. Map the data to CSV rows
-    const csvRows = filteredData.map(r => [
-        `"${(r.Location || r.location || 'Unassigned').trim()}"`,
-        `"${r.asset_name || ''}"`,
-        `"${r.sub_area || ''}"`,
-        `"${r.seal_number || ''}"`,
-        `"${r.inspection_date || ''}"`,
-        `"${r.signoff || ''}"`,
-        `"${r.inspection_notes || ''}"`,
-        `"${r.status || ''}"`,
-        `"${r.break_date || ''}"`,
-        `"${r.responsible_party || ''}"`,
-        `"${r.break_reason || ''}"`
-    ].join(','));
-
-    // 4. Combine headers and rows
-    const csvContent = [headers.join(','), ...csvRows].join('\n');
-
-    // 5. Trigger the download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    
-    const timestamp = new Date().toISOString().split('T')[0];
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Tamper_Seal_Log_Export_${timestamp}.csv`);
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
 async function fetchHierarchyData() {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning 10,000 entries for Areas and Assets...</p>';
@@ -446,6 +410,121 @@ function toggleFilter(type, value) {
     
     createFilterButtons();
     renderFilteredLog();
+}
+
+/**
+ * UI Controls for the Export Prompt
+ */
+function showExportOptions() {
+    document.getElementById('exportModal').style.display = 'flex';
+}
+
+function closeExportModal() {
+    document.getElementById('exportModal').style.display = 'none';
+}
+
+function runExport(type) {
+    closeExportModal();
+    if (type === 'csv') exportToCSV();
+    if (type === 'pdf') exportToPDF();
+}
+
+/**
+ * Generates a PDF report using jsPDF and AutoTable
+ */
+function exportToPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'pt', 'a4'); // Landscape orientation
+
+    // 1. Filter data based on active UI filters
+    const targetLocs = activeFilters.locations;
+    const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
+
+    const filteredData = allHierarchyRecords.filter(r => {
+        const loc = (r.Location || r.location || 'Unassigned').trim();
+        const matchesLoc = targetLocs.has('All') || targetLocs.has(loc);
+        const stat = (r.status || '').toLowerCase();
+        const matchesStat = activeFilters.statuses.has('All') || 
+                            targetStats.some(filter => stat.includes(filter));
+        return matchesLoc && matchesStat;
+    });
+
+    if (filteredData.length === 0) {
+        alert("No records found to export.");
+        return;
+    }
+
+    // 2. Prepare Table Data
+    const headers = [["Area", "Asset", "Sub Area", "Seal #", "Date", "Signoff", "Notes", "Status", "Break Date"]];
+    const body = filteredData.map(r => [
+        (r.Location || r.location || 'Unassigned').trim(),
+        r.asset_name || '',
+        r.sub_area || '',
+        r.seal_number || '',
+        r.inspection_date || '',
+        r.signoff || '',
+        r.inspection_notes || '',
+        r.status || '',
+        r.break_date || ''
+    ]);
+
+    // 3. Style and Save PDF
+    doc.setFontSize(18);
+    doc.text("Tamper Seal Inspection Log", 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, 55);
+
+    doc.autoTable({
+        head: headers,
+        body: body,
+        startY: 70,
+        theme: 'striped',
+        headStyles: { fillColor: [211, 47, 47] }, // Matching Red Header
+        styles: { fontSize: 8, cellPadding: 3 }
+    });
+
+    const timestamp = new Date().toISOString().split('T')[0];
+    doc.save(`Tamper_Seal_Log_${timestamp}.pdf`);
+}
+
+/**
+ * Existing CSV Logic (Ensure this is in your script)
+ */
+function exportToCSV() {
+    const targetLocs = activeFilters.locations;
+    const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
+
+    const filteredData = allHierarchyRecords.filter(r => {
+        const loc = (r.Location || r.location || 'Unassigned').trim();
+        const matchesLoc = targetLocs.has('All') || targetLocs.has(loc);
+        const stat = (r.status || '').toLowerCase();
+        const matchesStat = activeFilters.statuses.has('All') || 
+                            targetStats.some(filter => stat.includes(filter));
+        return matchesLoc && matchesStat;
+    });
+
+    const headers = ["Area", "Asset", "Sub Area", "Seal #", "Date", "Signoff", "Notes", "Status", "Break Date"];
+    const csvContent = [
+        headers.join(','),
+        ...filteredData.map(r => [
+            `"${(r.Location || r.location || 'Unassigned').trim()}"`,
+            `"${r.asset_name || ''}"`,
+            `"${r.sub_area || ''}"`,
+            `"${r.seal_number || ''}"`,
+            `"${r.inspection_date || ''}"`,
+            `"${r.signoff || ''}"`,
+            `"${r.inspection_notes || ''}"`,
+            `"${r.status || ''}"`,
+            `"${r.break_date || ''}"`
+        ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Tamper_Seal_Log_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
 }
 
 function createFilterButtons() {
