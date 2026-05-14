@@ -256,11 +256,14 @@
     padding: 10px 20px; 
 }
 
-/* Filter Styling */
+/* Stack the filter groups vertically on the right side */
 .header-right {
     display: flex;
-    gap: 20px;
-    align-items: center;
+    flex-direction: column; /* Stacks the two filter groups */
+    gap: 8px;               /* Space between the two rows */
+    align-items: flex-end;  /* Aligns both rows to the right edge */
+    justify-content: center;
+    height: 100%;           /* Ensures it uses the header's height for centering */
 }
 
 .filter-group {
@@ -277,12 +280,13 @@
     letter-spacing: 0.5px;
 }
 
+/* Optional: Shrink buttons slightly so two rows fit comfortably in the 80px header */
 .filter-btn {
-    padding: 5px 12px;
-    font-size: 12px;
+    padding: 3px 10px;
+    font-size: 11px;
     border: 1px solid #ccc;
     background: white;
-    border-radius: 15px;
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
