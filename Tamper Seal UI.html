@@ -743,22 +743,38 @@ async function initApp() {
         .subscribe();
 }
 
-async function fetchHierarchyData() {
+async function fetchHierarchyData(isSilent = false) {
     const container = document.getElementById('main-content-area');
-    container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning hierarchy...</p>';
+    
+    // 1. If silent, capture which Areas and Assets are currently open
+    const openAreas = new Set();
+    const openAssets = new Set();
+    
+    if (isSilent) {
+        document.querySelectorAll('.area-container').forEach(areaDiv => {
+            const content = areaDiv.querySelector('.area-content');
+            if (content && !content.classList.contains('hidden')) {
+                const name = areaDiv.querySelector('.area-header span').innerText.replace('Area: ', '');
+                openAreas.add(name);
+            }
+        });
+        document.querySelectorAll('.rows-container').forEach(rowsDiv => {
+            if (!rowsDiv.classList.contains('hidden')) {
+                openAssets.add(rowsDiv.getAttribute('data-asset-name'));
+            }
+        });
+    } else {
+        // Standard load: show the scanning message
+        container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning 10,000 entries for Areas and Assets...</p>';
+    }
 
     let allRecords = [];
     let from = 0, to = 999, fetchMore = true;
 
-    // We fetch the minimum columns required for Filters and Search to work
     while (fetchMore && allRecords.length < 10000) {
-        const { data, error } = await _supabase
-            .from('Assets')
-            .select('id, location, asset_name, status, sub_area, seal_number, inspection_notes, signoff') 
-            .range(from, to);
-            
+        const { data, error } = await _supabase.from('Assets').select('*').range(from, to);
         if (error) {
-            container.innerHTML = '<p style="text-align:center; color:red;">Error loading hierarchy.</p>';
+            container.innerHTML = '<p style="text-align:center; color:red;">Error loading log hierarchy.</p>';
             return;
         }
         allRecords = allRecords.concat(data);
@@ -768,7 +784,8 @@ async function fetchHierarchyData() {
 
     allHierarchyRecords = allRecords;
     createFilterButtons();
-    renderFilteredLog();
+    // Pass the captured open states to the renderer
+    await renderFilteredLog(openAreas, openAssets);
 }
 
 function toggleFilter(type, value) {
@@ -1029,7 +1046,7 @@ function prevMatch() {
 /**
  * Updated renderFilteredLog to be async so we can wait for search-triggered data loads
  */
-async function renderFilteredLog() {
+ function renderFilteredLog(openAreas = new Set(), openAssets = new Set()) {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '';
 
@@ -1041,7 +1058,6 @@ async function renderFilteredLog() {
     const loadPromises = [];
 
     uniqueAreas.forEach(areaName => {
-        // 1. Filter Area Visibility
         if (!targetLocs.has('All') && !targetLocs.has(areaName)) return;
 
         const areaRecords = allHierarchyRecords.filter(r => (r.Location || r.location || 'Unassigned').trim() === areaName);
@@ -1049,33 +1065,33 @@ async function renderFilteredLog() {
 
         let visibleAssetsInArea = 0;
         const areaContent = document.createElement('div');
-        const isAreaHidden = query === '' ? 'hidden' : '';
+        
+        // REFRESH LOGIC: Keep area open if it was open before or if searching
+        const isAreaOpen = query !== '' || openAreas.has(areaName);
+        const isAreaHidden = isAreaOpen ? '' : 'hidden';
         areaContent.className = `area-content ${isAreaHidden}`;
 
         uniqueAssetNames.forEach(assetName => {
             let assetRecords = areaRecords.filter(r => r.asset_name === assetName);
-            
-            // 2. Filter Asset Visibility by Status
             if (!activeFilters.statuses.has('All')) {
                 assetRecords = assetRecords.filter(r => targetStats.some(f => (r.status || '').toLowerCase().includes(f)));
             }
-
-            // 3. Filter Asset Visibility by Search Query
             if (query !== '') {
                 assetRecords = assetRecords.filter(r => {
                     const searchStr = `${r.asset_name} ${r.Location || r.location} ${r.seal_number} ${r.sub_area} ${r.inspection_notes} ${r.signoff}`.toLowerCase();
                     return searchStr.includes(query);
                 });
             }
-
-            // If no seals in this asset match the filters, don't show the asset container
             if (assetRecords.length === 0) return;
 
             visibleAssetsInArea++;
             const assetDiv = document.createElement('div');
             assetDiv.className = 'asset-container';
-            const isRowsHidden = query === '' ? 'hidden' : '';
-            const arrow = query === '' ? '▶' : '▼';
+            
+            // REFRESH LOGIC: Keep asset open if it was open before or if searching
+            const isAssetOpen = query !== '' || openAssets.has(assetName);
+            const isRowsHidden = isAssetOpen ? '' : 'hidden';
+            const arrow = isAssetOpen ? '▼' : '▶';
 
             assetDiv.innerHTML = `
                 <div class="asset-header" onclick="toggleAsset(this, '${assetName}')">
@@ -1085,8 +1101,8 @@ async function renderFilteredLog() {
             
             areaContent.appendChild(assetDiv);
 
-            // Automatically load data if searching
-            if (query !== '') {
+            // Re-fetch data for assets that are open
+            if (isAssetOpen) {
                 const rowsDiv = assetDiv.querySelector('.rows-container');
                 loadPromises.push(fetchAndRender(rowsDiv, assetName));
             }
@@ -1095,7 +1111,7 @@ async function renderFilteredLog() {
         if (visibleAssetsInArea > 0) {
             const areaDiv = document.createElement('div');
             areaDiv.className = 'area-container';
-            const areaArrow = query === '' ? '▶' : '▼';
+            const areaArrow = (query !== '' || openAreas.has(areaName)) ? '▼' : '▶';
             areaDiv.innerHTML = `<div class="area-header" onclick="toggleArea(this)"><span>Area: ${areaName}</span><span class="area-arrow">${areaArrow}</span></div>`;
             areaDiv.appendChild(areaContent);
             container.appendChild(areaDiv);
@@ -1104,6 +1120,7 @@ async function renderFilteredLog() {
 
     if (loadPromises.length > 0) await Promise.all(loadPromises);
 }
+
 async function toggleAsset(header, assetName) {
     const rowsDiv = header.nextElementSibling;
     const isHidden = rowsDiv.classList.toggle('hidden');
