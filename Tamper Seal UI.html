@@ -593,11 +593,14 @@ input, textarea, select {
     </div>
 
     <div>
-    <button class="tool-btn" style="background-color: #ffffff; color: rgb(0, 0, 0); border-color: #1b5e20; margin-right: 10px;" onclick="fetchHierarchyData(true)">Refresh</button>
+    <button class="tool-btn" onclick="fetchHierarchyData(true)">Refresh</button>
     <button id="addBtn" class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20; margin-right: 10px;" onclick="showAddModal()">+ Add Seals</button>
     <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
+    
     <button id="cancelBtn" class="tool-btn" style="display:none; border-color:#757575; color:#757575; margin-right: 10px;" onclick="cancelEditMode()">Cancel Changes</button>
+    
     <button id="deleteBtn" class="tool-btn" style="display:none; border-color:#d32f2f; color:#d32f2f; margin-right:10px;" onclick="deleteSelected()">Delete Selected</button>
+    
     <button id="exportBtn" class="tool-btn" onclick="showExportOptions()">Export</button>
     <span id="saveIndicator">Synced</span>
 </div>
@@ -779,24 +782,9 @@ async function initApp() {
 }
 
 /**
- * Discards all unsaved edits by performing a silent refresh of the data
+ * Toggles UI between Read-Only and Edit Mode
  */
-async function cancelEditMode() {
-    if (!confirm("Discard all unsaved changes?")) return;
-    
-    const indicator = document.getElementById('saveIndicator');
-    indicator.innerText = "Reverting...";
-    
-    // Perform a silent refresh to overwrite local edits with database data
-    await fetchHierarchyData(true);
-    
-    exitEditUI();
-}
-
-/**
- * Restores the standard UI button visibility
- */
-function exitEditUI() {
+async function toggleEditMode() {
     const editBtn = document.getElementById('editBtn');
     const deleteBtn = document.getElementById('deleteBtn');
     const addBtn = document.getElementById('addBtn');
@@ -804,19 +792,70 @@ function exitEditUI() {
     const cancelBtn = document.getElementById('cancelBtn');
     const indicator = document.getElementById('saveIndicator');
 
+    if (!isEditMode) {
+        // ENTER EDIT MODE
+        isEditMode = true;
+        document.body.classList.add('is-editing');
+        editBtn.innerText = "Save Changes";
+        editBtn.style.backgroundColor = "#d32f2f";
+        editBtn.style.color = "white";
+        
+        // VISIBILITY CHANGES
+        deleteBtn.style.display = "inline-block";
+        cancelBtn.style.display = "inline-block"; // Show Cancel
+        addBtn.style.display = "none";           // Hide Add Seals
+        exportBtn.style.display = "none";        // Hide Export
+        
+        indicator.innerText = "Editing...";
+        document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = false);
+        document.querySelectorAll('.cell-row select').forEach(s => s.disabled = false);
+    } else {
+        // SAVE AND EXIT
+        indicator.innerText = "Saving...";
+        await saveAllChanges();
+        exitEditUI(); // Restore the standard button layout
+    }
+}
+
+/**
+ * Discards changes and ends editing mode
+ */
+async function cancelEditMode() {
+    if (!confirm("Discard all unsaved changes?")) return;
+    
+    document.getElementById('saveIndicator').innerText = "Reverting...";
+    
+    // Perform a silent refresh to overwrite local changes with database data
+    await fetchHierarchyData(true);
+    
+    exitEditUI(); // Close edit mode UI
+}
+
+/**
+ * Helper to restore standard button visibility and lock inputs
+ */
+function exitEditUI() {
     isEditMode = false;
     document.body.classList.remove('is-editing');
     
+    const editBtn = document.getElementById('editBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const addBtn = document.getElementById('addBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const indicator = document.getElementById('saveIndicator');
+
     editBtn.innerText = "Edit";
     editBtn.style.backgroundColor = "white";
     editBtn.style.color = "#d32f2f";
     
-    // Restore buttons
+    // RESTORE VISIBILITY
     deleteBtn.style.display = "none";
+    cancelBtn.style.display = "none";
     addBtn.style.display = "inline-block";
     exportBtn.style.display = "inline-block";
-    cancelBtn.style.display = "none";
     
+    // Relock all rows
     document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = true);
     document.querySelectorAll('.cell-row select').forEach(s => s.disabled = true);
     indicator.innerText = "Synced";
@@ -1265,46 +1304,6 @@ async function fetchAndRender(container, assetName) {
 
 let isEditMode = false;
 
-/**
- * Toggles the UI between Read-Only and Edit Mode
- */
-async function toggleEditMode() {
-    const editBtn = document.getElementById('editBtn');
-    const deleteBtn = document.getElementById('deleteBtn');
-    const addBtn = document.getElementById('addBtn');
-    const exportBtn = document.getElementById('exportBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const indicator = document.getElementById('saveIndicator');
-
-    if (!isEditMode) {
-        // ENTER EDIT MODE
-        isEditMode = true;
-        document.body.classList.add('is-editing');
-        editBtn.innerText = "Save Changes";
-        editBtn.style.backgroundColor = "#d32f2f";
-        editBtn.style.color = "white";
-        
-        // UI Changes
-        deleteBtn.style.display = "inline-block";
-        addBtn.style.display = "none";      // Hide Add Seals
-        exportBtn.style.display = "none";   // Hide Export
-        cancelBtn.style.display = "inline-block"; // Show Cancel
-        
-        indicator.innerText = "Editing...";
-        
-        document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = false);
-        document.querySelectorAll('.cell-row select').forEach(s => s.disabled = false);
-    } else {
-        // SAVE AND EXIT
-        indicator.innerText = "Saving...";
-        await saveAllChanges();
-        
-        exitEditUI(); // Helper function to restore buttons
-    }
-}
-/**
- * Deletes checked rows from Supabase and UI
- */
 async function deleteSelected() {
     const checkedRows = document.querySelectorAll('.row-selector:checked');
     if (checkedRows.length === 0) {
