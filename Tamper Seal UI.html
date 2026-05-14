@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=1300">
     <title>Asset Tamper Seal Log</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,7 +12,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         /* MATCHING LAUNCHPAD STYLING */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+        body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-width: 1300px; /* Ensures the page never squishes smaller than desktop */
+    margin: 0;
+    padding: 0;
+}
         /* Styling for all cells except the Status column */
 .cell-row textarea {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* You can change the typeface here */
@@ -37,11 +42,20 @@
         .header-center { flex: 1; text-align: center; }
         .header-center span { color: #d32f2f; font-weight: 800; font-size: 30px; letter-spacing: -1px; }
 
-        .subheader {
-            position: sticky; top: 0; z-index: 1000; background-color: #f1f3f4;
-            height: 50px; display: flex; align-items: center; padding: 0 30px;
-            border-bottom: 1px solid #dcdcdc; justify-content: space-between;
-        }
+       .subheader {
+    position: sticky; 
+    top: 0; 
+    z-index: 1000; 
+    background-color: #f1f3f4;
+    height: 50px; 
+    display: flex; 
+    align-items: center; 
+    padding: 0 30px;
+    border-bottom: 1px solid #dcdcdc; 
+    justify-content: space-between;
+    width: 1300px; /* Match body width */
+    box-sizing: border-box;
+}
 
         .tool-btn {
             padding: 6px 12px; font-size: 13px; border: 1px solid #d32f2f;
@@ -49,10 +63,10 @@
         }
 
         .frozen-bar {
-            position: sticky; top: 50px; z-index: 999; background-color: #de4343;
-            color: white; height: 28px; display: flex; align-items: center;
-            width: 95%; margin: 0 auto; padding: 0 15px; border-radius: 4px;
-        }
+    position: sticky; 
+    top: 50px; 
+    z-index: 999;
+}
 
         .frozen-grid { display: flex; width: 100%; align-items: center; gap: 5px; }
         .header-cell { flex: 1; text-align: center; font-size: 11px; font-weight: bold; text-transform: uppercase; }
@@ -187,6 +201,15 @@
     height: 100%;            /* Ensure it fills the centered row */
 }
 
+/* Update main containers from 95% to a fixed 1240px (centered) */
+.frozen-bar, 
+.area-container, 
+.asset-container {
+    width: 1240px !important; 
+    margin: 20px auto; 
+    box-sizing: border-box;
+}
+
 /* AREA ACCORDION STYLES */
 .area-container { 
     margin: 20px auto; 
@@ -292,14 +315,8 @@
 
 /* Search Bar Styling */
 .search-container {
-    display: flex;
-    align-items: center;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 2px 8px;
-    margin-left: 10px;
-    width: 250px;
+    flex-shrink: 0;
+    width: 320px !important;
 }
 
 .search-container input {
@@ -463,12 +480,16 @@ body.is-editing .frozen-grid .edit-only-header {
 /* Cleaned & Consolidated Bulk Add Styling */
 #addModal .modal-content {
     width: 1000px !important; 
-    padding: 0;
-    overflow: hidden;
+    margin: auto; /* Centers in the fixed viewport */
     background-color: white; 
     border: 3px solid #d32f2f;
     border-radius: 12px;
-    text-align: left; /* Ensures nothing inside is centered by default */
+}
+
+input, textarea, select {
+    -webkit-appearance: none; /* Removes iOS default styling */
+    border-radius: 4px;
+    font-size: 14px; /* Prevents iOS from auto-zooming on focus */
 }
 
 #addModal h3 {
