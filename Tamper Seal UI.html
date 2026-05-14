@@ -658,6 +658,7 @@ const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let allHierarchyRecords = [];
+let localEdits = {}; // NEW: Stores unsaved changes by ID
 // Change to Sets to track multiple active values
 let activeFilters = { 
     locations: new Set(['All']), 
@@ -749,6 +750,7 @@ async function cancelEditMode() {
 
 function exitEditUI() {
     isEditMode = false;
+    localEdits = {}; // NEW: Clear cache
     document.body.classList.remove('is-editing');
     
     const editBtn = document.getElementById('editBtn');
@@ -1261,54 +1263,25 @@ async function deleteSelected() {
  * Optimized: Collects all data and performs ONE bulk request
  */
 async function saveAllChanges() {
-    const rows = document.querySelectorAll('.cell-row');
     const updatePromises = [];
     const indicator = document.getElementById('saveIndicator');
 
-    rows.forEach(row => {
-        const id = Number(row.dataset.id);
-        const inputs = row.querySelectorAll('textarea, select');
-        
-        // Find the original record in local cache to compare
-        const original = allHierarchyRecords.find(r => Number(r.id) === id);
-        if (!original) return;
+    // 1. Iterate through the CACHE, not just visible rows
+    for (const id in localEdits) {
+        const changes = localEdits[id];
+        if (Object.keys(changes).length === 0) continue;
 
-        const updatedData = {
-            asset_name: inputs[0].value,
-            location: inputs[1].value,
-            sub_area: inputs[2].value,
-            seal_number: inputs[3].value,
-            inspection_date: inputs[4].value,
-            signoff: inputs[5].value,
-            inspection_notes: inputs[6].value,
-            status: inputs[7].value,
-            break_date: inputs[8].value,
-            responsible_party: inputs[9].value,
-            break_reason: inputs[10].value
-        };
-
-        // Check if any field has actually changed
-        const hasChanged = 
-            updatedData.asset_name !== (original.asset_name || '') ||
-            updatedData.Location !== (original.Location || original.location || '') ||
-            updatedData.sub_area !== (original.sub_area || '') ||
-            updatedData.seal_number !== (original.seal_number || '') ||
-            updatedData.inspection_date !== (original.inspection_date || '') ||
-            updatedData.signoff !== (original.signoff || '') ||
-            updatedData.inspection_notes !== (original.inspection_notes || '') ||
-            updatedData.status !== (original.status || '') ||
-            updatedData.break_date !== (original.break_date || '') ||
-            updatedData.responsible_party !== (original.responsible_party || '') ||
-            updatedData.break_reason !== (original.break_reason || '');
-
-        if (hasChanged) {
-            updatePromises.push(
-                _supabase.from('Assets').update(updatedData).eq('id', id)
-            );
+        // Ensure location is mapped to the correct column name for your DB
+        if (changes.location) {
+            changes.Location = changes.location;
+            delete changes.location;
         }
-    });
 
-    // If nothing changed, exit without error
+        updatePromises.push(
+            _supabase.from('Assets').update(changes).eq('id', id)
+        );
+    }
+
     if (updatePromises.length === 0) {
         console.log("No changes to save.");
         return; 
@@ -1318,12 +1291,20 @@ async function saveAllChanges() {
     const errors = results.filter(r => r.error);
     
     if (errors.length > 0) {
-        console.error("Some updates failed:", errors);
-        alert("Failed to save some rows. Check console for details.");
+        alert("Failed to save some rows.");
     } else {
-        // Full refresh to rebuild hierarchy in case Asset/Location names changed
+        localEdits = {}; // Clear cache after successful save
         await fetchHierarchyData(true); 
     }
+}
+
+/**
+ * Captures edits in real-time to prevent data loss during search/navigation
+ */
+function syncEdit(id, field, value) {
+    if (!id || id === "undefined") return; // Skip for preview mode
+    if (!localEdits[id]) localEdits[id] = {};
+    localEdits[id][field] = value;
 }
 
 function renderEntries(container, entries) {
@@ -1332,31 +1313,39 @@ function renderEntries(container, entries) {
         return;
     }
     entries.forEach(entry => {
+        const id = entry.id;
         const row = document.createElement('div');
         row.className = 'cell-row';
-        row.dataset.id = entry.id; 
-        
+        row.dataset.id = id; 
+
+        // Helper to get the live value (either from cache or database)
+        const val = (f) => (localEdits[id] && localEdits[id][f] !== undefined) ? localEdits[id][f] : (entry[f] || '');
+        // Specific check for location/Location mismatch
+        const locVal = (localEdits[id] && localEdits[id].location !== undefined) ? localEdits[id].location : (entry.Location || entry.location || '');
+
         row.innerHTML = `
             <div class="edit-checkbox-cell">
                 <input type="checkbox" class="row-selector">
             </div>
-            <textarea class="edit-only-cell" ${!isEditMode ? 'readonly' : ''}>${entry.asset_name || ''}</textarea>
-            <textarea class="edit-only-cell" ${!isEditMode ? 'readonly' : ''}>${entry.Location || entry.location || ''}</textarea>
+            <textarea class="edit-only-cell" oninput="syncEdit('${id}', 'asset_name', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('asset_name')}</textarea>
+            <textarea class="edit-only-cell" oninput="syncEdit('${id}', 'location', this.value)" ${!isEditMode ? 'readonly' : ''}>${locVal}</textarea>
             
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.sub_area || ''}</textarea>
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.seal_number || ''}</textarea>
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.inspection_date || ''}</textarea>
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.signoff || ''}</textarea>
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.inspection_notes || ''}</textarea>
-            <select class="status-dropdown" ${!isEditMode ? 'disabled' : ''} onchange="applyStatusColor(this)">
-                <option value="${entry.status || ''}">${entry.status || 'Select...'}</option>
+            <textarea oninput="syncEdit('${id}', 'sub_area', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('sub_area')}</textarea>
+            <textarea oninput="syncEdit('${id}', 'seal_number', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('seal_number')}</textarea>
+            <textarea oninput="syncEdit('${id}', 'inspection_date', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('inspection_date')}</textarea>
+            <textarea oninput="syncEdit('${id}', 'signoff', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('signoff')}</textarea>
+            <textarea oninput="syncEdit('${id}', 'inspection_notes', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('inspection_notes')}</textarea>
+            
+            <select class="status-dropdown" onchange="syncEdit('${id}', 'status', this.value); applyStatusColor(this)" ${!isEditMode ? 'disabled' : ''}>
+                <option value="${val('status')}">${val('status') || 'Select...'}</option>
                 <option value="Intact">Intact</option>
                 <option value="Broken">Broken</option>
                 <option value="Removed">Removed</option>
             </select>
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.break_date || ''}</textarea>
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.responsible_party || ''}</textarea>
-            <textarea ${!isEditMode ? 'readonly' : ''}>${entry.break_reason || ''}</textarea>
+            
+            <textarea oninput="syncEdit('${id}', 'break_date', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('break_date')}</textarea>
+            <textarea oninput="syncEdit('${id}', 'responsible_party', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('responsible_party')}</textarea>
+            <textarea oninput="syncEdit('${id}', 'break_reason', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('break_reason')}</textarea>
         `;
         applyStatusColor(row.querySelector('.status-dropdown'));
         container.appendChild(row);
