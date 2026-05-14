@@ -393,12 +393,9 @@
     scroll-margin-top: 150px; /* Ensures row isn't hidden under header when scrolling */
 }
 
-/* --- EDIT MODE SELECTORS --- */
-
-/* 1. Row Checkbox Column */
 /* --- CONSOLIDATED EDIT MODE SELECTORS --- */
 
-/* 1. Force Row Checkboxes and Header Spacers to show */
+/* 1. Force Checkboxes and Header Spacers to show (40px wide) */
 .edit-checkbox-cell, 
 .edit-header-cell { 
     flex: 0 0 40px !important; 
@@ -406,9 +403,10 @@
     justify-content: center; 
     align-items: center; 
     border-right: 1px solid #ccc;
+    box-sizing: border-box;
 }
 
-/* When Edit Mode is active on the body */
+/* When the body has the 'is-editing' class, show these elements */
 body.is-editing .edit-checkbox-cell { 
     display: flex !important; 
 }
@@ -417,7 +415,7 @@ body.is-editing .edit-header-cell {
     display: block !important; 
 }
 
-/* 2. Asset & Location Columns (Hidden in log normally, shown in Edit/Preview) */
+/* 2. Asset & Location Columns (Show only during Edit or Preview) */
 .edit-only-cell,
 .edit-only-header { 
     display: none !important; 
@@ -429,7 +427,7 @@ body.is-editing .edit-only-header {
     flex: 1;
 }
 
-/* 3. Visual feedback for editable fields */
+/* 3. Visual feedback for fields you are currently editing */
 body.is-editing .cell-row textarea, 
 body.is-editing .cell-row select {
     background-color: #ffffff !important;
