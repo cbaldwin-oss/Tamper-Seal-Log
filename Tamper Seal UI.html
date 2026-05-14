@@ -751,12 +751,13 @@ async function fetchHierarchyData(isSilent = false) {
     // 1. If silent, capture which Areas and Assets are currently open
     const openAreas = new Set();
     const openAssets = new Set();
-    
+    const scrollPos = window.scrollY; // Capture where the user is looking
+
     if (isSilent) {
         document.querySelectorAll('.area-container').forEach(areaDiv => {
             const content = areaDiv.querySelector('.area-content');
             if (content && !content.classList.contains('hidden')) {
-                const name = areaDiv.querySelector('.area-header span').innerText.replace('Area: ', '');
+                const name = areaDiv.querySelector('.area-header span').innerText.replace('Area: ', '').trim();
                 openAreas.add(name);
             }
         });
@@ -787,7 +788,7 @@ async function fetchHierarchyData(isSilent = false) {
     allHierarchyRecords = allRecords;
     createFilterButtons();
     // Pass the captured open states to the renderer
-    await renderFilteredLog(openAreas, openAssets);
+    await renderFilteredLog(openAreas, openAssets, scrollPos);
 }
 
 function toggleFilter(type, value) {
@@ -1121,6 +1122,9 @@ function prevMatch() {
     });
 
     if (loadPromises.length > 0) await Promise.all(loadPromises);
+    if (scrollPos > 0) {
+        window.scrollTo(0, scrollPos);
+    }
 }
 
 async function toggleAsset(header, assetName) {
