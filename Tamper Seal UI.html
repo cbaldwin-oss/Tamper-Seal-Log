@@ -392,7 +392,8 @@
     background-color: #fffde7 !important;
     scroll-margin-top: 150px; /* Ensures row isn't hidden under header when scrolling */
 }
-/* Edit Mode Styles */
+
+/* Ensure checkboxes and headers show up with priority in Edit Mode */
 .edit-checkbox-cell { 
     flex: 0 0 40px; 
     display: none; 
@@ -401,13 +402,8 @@
     border-right: 1px solid #ccc;
 }
 
-body.is-editing .edit-checkbox-cell { display: flex; }
-
-body.is-editing .cell-row textarea, 
-body.is-editing .cell-row select {
-    background-color: #ffffff !important;
-    border: 1px solid #d32f2f !important;
-    cursor: text;
+body.is-editing .edit-checkbox-cell { 
+    display: flex !important; 
 }
 
 .frozen-grid .edit-header-cell {
@@ -415,10 +411,18 @@ body.is-editing .cell-row select {
     display: none;
 }
 
-body.is-editing .frozen-grid .edit-header-cell { display: block; }
-/* Hide Asset/Location columns by default */
-.edit-only-cell { 
-    display: none; 
+body.is-editing .frozen-grid .edit-header-cell { 
+    display: block !important; 
+}
+
+
+body.is-editing .edit-checkbox-cell { display: flex; }
+
+body.is-editing .cell-row textarea, 
+body.is-editing .cell-row select {
+    background-color: #ffffff !important;
+    border: 1px solid #d32f2f !important;
+    cursor: text;
 }
 
 /* Show them only when the body has the 'is-editing' class */
