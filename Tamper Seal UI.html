@@ -735,10 +735,12 @@ async function initApp() {
                 table: 'Assets' 
             }, 
             (payload) => {
-                console.log('Change received!', payload);
-                // Trigger your existing refresh logic automatically
-                fetchHierarchyData(); 
-            }
+    console.log('Change received!', payload);
+    // Don't refresh if the user is currently editing rows
+    if (!isEditMode) {
+        fetchHierarchyData(true); // true = silent refresh
+    }
+}
         )
         .subscribe();
 }
@@ -1046,7 +1048,7 @@ function prevMatch() {
 /**
  * Updated renderFilteredLog to be async so we can wait for search-triggered data loads
  */
- function renderFilteredLog(openAreas = new Set(), openAssets = new Set()) {
+ async function renderFilteredLog(openAreas = new Set(), openAssets = new Set()) {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '';
 
