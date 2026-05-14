@@ -816,19 +816,18 @@ async function toggleEditMode() {
 async function cancelEditMode() {
     if (!confirm("Discard all unsaved changes?")) return;
     
-    // 1. Turn off edit mode immediately so renderer uses 'readonly'
-    isEditMode = false; 
+    // Set isEditMode to false immediately so the refresh renders in read-only mode
+    isEditMode = false;
     document.getElementById('saveIndicator').innerText = "Reverting...";
     
-    // 2. Refresh data from Supabase to overwrite local edits
+    // Refresh with the silent flag to keep your current view
     await fetchHierarchyData(true);
     
-    // 3. Restore UI buttons
     exitEditUI();
 }
 
 function exitEditUI() {
-    isEditMode = false; // Ensure it's off
+    isEditMode = false;
     document.body.classList.remove('is-editing');
     
     const editBtn = document.getElementById('editBtn');
@@ -842,13 +841,13 @@ function exitEditUI() {
     editBtn.style.backgroundColor = "white";
     editBtn.style.color = "#d32f2f";
     
-    // Restore Button Visibility
+    // Restore standard button visibility
     deleteBtn.style.display = "none";
     cancelBtn.style.display = "none";
     addBtn.style.display = "inline-block";
     exportBtn.style.display = "inline-block";
     
-    // Relock inputs
+    // Relock inputs and update status
     document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = true);
     document.querySelectorAll('.cell-row select').forEach(s => s.disabled = true);
     indicator.innerText = "Synced";
@@ -1402,7 +1401,7 @@ async function saveAllChanges() {
         alert("Failed to save some rows. Check console for details.");
     } else {
         // Full refresh to rebuild hierarchy in case Asset/Location names changed
-        await fetchHierarchyData(); 
+        await fetchHierarchyData(true); 
     }
 }
 
