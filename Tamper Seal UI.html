@@ -593,14 +593,13 @@ input, textarea, select {
     </div>
 
     <div>
-    <button class="tool-btn" onclick="fetchHierarchyData(true)">Refresh</button>
+    <button class="tool-btn" style="background-color: #ffffff; color: rgb(0, 0, 0); border-color: #1b5e20; margin-right: 10px;" onclick="fetchHierarchyData(true)">Refresh</button>
     <button id="addBtn" class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20; margin-right: 10px;" onclick="showAddModal()">+ Add Seals</button>
     <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
     
     <button id="cancelBtn" class="tool-btn" style="display:none; border-color:#757575; color:#757575; margin-right: 10px;" onclick="cancelEditMode()">Cancel Changes</button>
     
     <button id="deleteBtn" class="tool-btn" style="display:none; border-color:#d32f2f; color:#d32f2f; margin-right:10px;" onclick="deleteSelected()">Delete Selected</button>
-    
     <button id="exportBtn" class="tool-btn" onclick="showExportOptions()">Export</button>
     <span id="saveIndicator">Synced</span>
 </div>
@@ -781,9 +780,6 @@ async function initApp() {
         .subscribe();
 }
 
-/**
- * Toggles UI between Read-Only and Edit Mode
- */
 async function toggleEditMode() {
     const editBtn = document.getElementById('editBtn');
     const deleteBtn = document.getElementById('deleteBtn');
@@ -800,11 +796,11 @@ async function toggleEditMode() {
         editBtn.style.backgroundColor = "#d32f2f";
         editBtn.style.color = "white";
         
-        // VISIBILITY CHANGES
+        // UI Visibility
         deleteBtn.style.display = "inline-block";
-        cancelBtn.style.display = "inline-block"; // Show Cancel
-        addBtn.style.display = "none";           // Hide Add Seals
-        exportBtn.style.display = "none";        // Hide Export
+        cancelBtn.style.display = "inline-block";
+        addBtn.style.display = "none";
+        exportBtn.style.display = "none";
         
         indicator.innerText = "Editing...";
         document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = false);
@@ -813,29 +809,26 @@ async function toggleEditMode() {
         // SAVE AND EXIT
         indicator.innerText = "Saving...";
         await saveAllChanges();
-        exitEditUI(); // Restore the standard button layout
+        exitEditUI();
     }
 }
 
-/**
- * Discards changes and ends editing mode
- */
 async function cancelEditMode() {
     if (!confirm("Discard all unsaved changes?")) return;
     
+    // 1. Turn off edit mode immediately so renderer uses 'readonly'
+    isEditMode = false; 
     document.getElementById('saveIndicator').innerText = "Reverting...";
     
-    // Perform a silent refresh to overwrite local changes with database data
+    // 2. Refresh data from Supabase to overwrite local edits
     await fetchHierarchyData(true);
     
-    exitEditUI(); // Close edit mode UI
+    // 3. Restore UI buttons
+    exitEditUI();
 }
 
-/**
- * Helper to restore standard button visibility and lock inputs
- */
 function exitEditUI() {
-    isEditMode = false;
+    isEditMode = false; // Ensure it's off
     document.body.classList.remove('is-editing');
     
     const editBtn = document.getElementById('editBtn');
@@ -849,13 +842,13 @@ function exitEditUI() {
     editBtn.style.backgroundColor = "white";
     editBtn.style.color = "#d32f2f";
     
-    // RESTORE VISIBILITY
+    // Restore Button Visibility
     deleteBtn.style.display = "none";
     cancelBtn.style.display = "none";
     addBtn.style.display = "inline-block";
     exportBtn.style.display = "inline-block";
     
-    // Relock all rows
+    // Relock inputs
     document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = true);
     document.querySelectorAll('.cell-row select').forEach(s => s.disabled = true);
     indicator.innerText = "Synced";
@@ -1165,7 +1158,7 @@ function prevMatch() {
 /**
  * Updated renderFilteredLog to be async so we can wait for search-triggered data loads
  */
- async function renderFilteredLog(openAreas = new Set(), openAssets = new Set()) {
+ async function renderFilteredLog(openAreas = new Set(), openAssets = new Set(), scrollPos = 0) {
     const container = document.getElementById('main-content-area');
     container.innerHTML = '';
 
