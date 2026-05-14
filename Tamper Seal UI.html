@@ -7,8 +7,6 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         /* MATCHING LAUNCHPAD STYLING */
@@ -641,14 +639,6 @@ input, textarea, select {
                 <label>Signoff (Email)</label>
                 <input type="text" id="newSignoff" placeholder="Your Email">
             </div>
-<div class="span-2" style="grid-column: span 2; margin-top: 10px;">
-    <label>Attach Photos (Google Drive)</label>
-    <div style="display: flex; gap: 10px; align-items: center;">
-        <button id="authBtn" class="tool-btn" style="border-color: #4285F4; color: #4285F4;" onclick="handleAuthClick()">Authorize Google Drive</button>
-        <input type="file" id="sealPhotos" multiple accept="image/*" style="padding: 10px; height: auto; border: 2px dashed #ccc; flex: 1;">
-    </div>
-    <small id="driveInfo" style="color: #666; margin-top: 5px; display: block;">You must authorize Google Drive before saving.</small>
-</div>
         </div>
         <div class="modal-btns">
             <button class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20;" onclick="generatePreview()">Generate Preview</button>
@@ -716,38 +706,10 @@ let activeFilters = {
     search: '' 
 };
 
-/* GOOGLE DRIVE CONFIG */
-const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'; // Get from Google Cloud Console
-const API_KEY = 'AIzaSyB8LnvQV-AogooEYwOafLevF1qcU7NuWsc'; // Get from Google Cloud Console
-const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 let accessToken = null;
-
-function gapiLoaded() { gapi.load('client', () => { gapi.client.init({ apiKey: API_KEY, discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] }).then(() => gapiInited = true); }); }
-function gisLoaded() { tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: (resp) => { if (resp.error) throw resp; accessToken = resp.access_token; document.getElementById('authBtn').innerText = "Drive Authorized ✅"; } }); gisInited = true; }
-function handleAuthClick() { tokenClient.requestAccessToken({prompt: 'consent'}); }
-
-/**
- * Helper to find or create a folder by name
- */
-async function getOrCreateFolder(name, parentId = null) {
-    let query = `name = '${name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-    if (parentId) query += ` and '${parentId}' in parents`;
-
-    const response = await gapi.client.drive.files.list({ q: query, fields: 'files(id, name)' });
-    const files = response.result.files;
-
-    if (files.length > 0) return files[0].id;
-
-    const metadata = { name: name, mimeType: 'application/vnd.google-apps.folder' };
-    if (parentId) metadata.parents = [parentId];
-
-    const folder = await gapi.client.drive.files.create({ resource: metadata, fields: 'id' });
-    return folder.result.id;
-}
 
 // Refresh the log every 5 minutes (300,000 milliseconds)
 setInterval(() => {
@@ -1574,46 +1536,13 @@ function renderPreviewGrid(entries) {
  * Step 3: Save the previewed data to Supabase
  */
 async function saveNewEntries() {
-    if (!accessToken) { alert("Please authorize Google Drive first."); return; }
-
     const rows = document.querySelectorAll('#preview-rows-container .cell-row');
-    const photoInput = document.getElementById('sealPhotos');
-    const files = photoInput.files;
     const indicator = document.getElementById('saveIndicator');
 
-    const assetName = document.getElementById('newAsset').value || "Unassigned_Asset";
-    const date = document.getElementById('newDate').value || new Date().toISOString().split('T')[0];
-    const start = document.getElementById('startSeal').value;
-    const end = document.getElementById('endSeal').value;
-
-    indicator.innerText = "Creating Folders...";
+    indicator.innerText = "Saving to Database...";
 
     try {
-        // 1. Create Folder Hierarchy: Root > Asset > Date_Seals
-        const rootId = await getOrCreateFolder("Tamper Seal Log Photos");
-        const assetFolderId = await getOrCreateFolder(assetName, rootId);
-        const batchFolderName = `${date}_Seals_${start}-${end}`;
-        const finalFolderId = await getOrCreateFolder(batchFolderName, assetFolderId);
-
-        // 2. Upload Photos
-        indicator.innerText = `Uploading ${files.length} Photos...`;
-        for (const file of files) {
-            const metadata = { name: file.name, parents: [finalFolderId] };
-            const formData = new FormData();
-            formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            formData.append('file', file);
-
-            await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                method: 'POST',
-                headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-                body: formData
-            });
-        }
-
-        const driveLink = `https://drive.google.com/drive/folders/${finalFolderId}`;
-
-        // 3. Save Records to Supabase
-        indicator.innerText = "Saving to Database...";
+        // 1. Map data directly from the preview rows
         const newRecords = Array.from(rows).map(row => {
             const inputs = row.querySelectorAll('textarea, select');
             return {
@@ -1627,15 +1556,18 @@ async function saveNewEntries() {
                 status: inputs[7].value,
                 break_date: inputs[8].value,
                 responsible_party: inputs[9].value,
-                break_reason: inputs[10].value,
-                photo_link: driveLink // Ensure this column exists in your 'Assets' table
+                break_reason: inputs[10].value
+                // photo_link is omitted as it's no longer required
             };
         });
 
+        // 2. Perform the insert to Supabase
         const { error } = await _supabase.from('Assets').insert(newRecords);
         if (error) throw error;
 
         indicator.innerText = "Created Successfully";
+        
+        // 3. Refresh the UI to show the new entries in their correct hierarchy
         await fetchHierarchyData();
     } catch (err) {
         console.error(err);
