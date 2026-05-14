@@ -396,41 +396,40 @@
 /* --- EDIT MODE SELECTORS --- */
 
 /* 1. Row Checkbox Column */
-.edit-checkbox-cell { 
-    flex: 0 0 40px; 
+/* --- CONSOLIDATED EDIT MODE SELECTORS --- */
+
+/* 1. Force Row Checkboxes and Header Spacers to show */
+.edit-checkbox-cell, 
+.edit-header-cell { 
+    flex: 0 0 40px !important; 
     display: none !important; /* Hidden by default */
     justify-content: center; 
     align-items: center; 
     border-right: 1px solid #ccc;
 }
 
+/* When Edit Mode is active on the body */
 body.is-editing .edit-checkbox-cell { 
-    display: flex !important; /* Force show when editing */
+    display: flex !important; 
 }
 
-/* 2. Frozen Header Cell for Checkboxes */
-.frozen-grid .edit-header-cell {
-    flex: 0 0 40px;
-    display: none !important;
-}
-
-body.is-editing .frozen-grid .edit-header-cell { 
+body.is-editing .edit-header-cell { 
     display: block !important; 
 }
 
-/* 3. Asset & Location Columns (Hidden in log, shown in Edit/Preview) */
-.cell-row .edit-only-cell,
-.frozen-grid .edit-only-header { 
+/* 2. Asset & Location Columns (Hidden in log normally, shown in Edit/Preview) */
+.edit-only-cell,
+.edit-only-header { 
     display: none !important; 
 }
 
-body.is-editing .cell-row .edit-only-cell,
-body.is-editing .frozen-grid .edit-only-header { 
+body.is-editing .edit-only-cell,
+body.is-editing .edit-only-header { 
     display: flex !important; 
     flex: 1;
 }
 
-/* 4. Edit Mode Input Styling */
+/* 3. Visual feedback for editable fields */
 body.is-editing .cell-row textarea, 
 body.is-editing .cell-row select {
     background-color: #ffffff !important;
