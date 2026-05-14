@@ -38,30 +38,15 @@
         .header-center span { color: #d32f2f; font-weight: 800; font-size: 30px; letter-spacing: -1px; }
 
         .subheader {
-    height: auto !important; /* Allow height to grow */
-    min-height: 50px;
-    flex-wrap: wrap; /* Allow wrapping */
-    padding: 10px 20px !important;
-    gap: 10px;
-}
+            position: sticky; top: 0; z-index: 1000; background-color: #f1f3f4;
+            height: 50px; display: flex; align-items: center; padding: 0 30px;
+            border-bottom: 1px solid #dcdcdc; justify-content: space-between;
+        }
 
-/* Ensure buttons are easy to tap on iPad */
-.tool-btn {
-    min-height: 44px; /* Apple's recommended minimum touch target */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.frozen-bar, .asset-container, .area-container {
-    width: 98% !important;
-    min-width: 1200px; /* Forces enough room for the 11 columns to stay legible */
-}
-
-/* Wrap the whole log in a scrollable wrapper */
-#main-content-area {
-    padding-bottom: 50px;
-}
+        .tool-btn {
+            padding: 6px 12px; font-size: 13px; border: 1px solid #d32f2f;
+            background: white; color: #d32f2f; cursor: pointer; border-radius: 4px; font-weight: bold;
+        }
 
         .frozen-bar {
             position: sticky; top: 50px; z-index: 999; background-color: #de4343;
@@ -305,11 +290,16 @@
 .modal-content h3 { margin-top: 0; color: #333; font-size: 20px; }
 .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
 
-/* Ensure the search container doesn't get squashed */
+/* Search Bar Styling */
 .search-container {
-    width: 100% !important; 
-    max-width: 400px;
-    margin: 5px 0;
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-left: 10px;
+    width: 250px;
 }
 
 .search-container input {
@@ -472,24 +462,13 @@ body.is-editing .frozen-grid .edit-only-header {
 }
 /* Cleaned & Consolidated Bulk Add Styling */
 #addModal .modal-content {
-    width: 95% !important; /* Default for mobile/iPad */
-    max-width: 1000px !important; /* Cap for Desktop */
-    margin: 20px auto;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-/* Adjust the Bulk Add Grid for vertical stacking on iPad Portrait */
-@media (max-width: 768px) {
-    .bulk-add-grid {
-        grid-template-columns: 1fr !important; /* Stack columns vertically */
-        padding: 20px !important;
-        gap: 15px !important;
-    }
-    
-    .bulk-add-grid div {
-        width: 100%;
-    }
+    width: 1000px !important; 
+    padding: 0;
+    overflow: hidden;
+    background-color: white; 
+    border: 3px solid #d32f2f;
+    border-radius: 12px;
+    text-align: left; /* Ensures nothing inside is centered by default */
 }
 
 #addModal h3 {
@@ -554,23 +533,6 @@ body.is-editing .frozen-grid .edit-only-header {
     border: 2px dashed #ccc; /* Visual cue for upload area */
     background: #fafafa;
     cursor: pointer;
-}
-#main-content-area {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-}
-
-.modal-overlay {
-    padding: 20px;
-    box-sizing: border-box;
-    align-items: flex-start; /* Better for scrolling on mobile */
-    overflow-y: auto;
-}
-
-/* Fix for iOS zoom on input focus */
-input, textarea, select {
-    font-size: 16px !important; /* Prevents auto-zoom on iPhone/iPad focus */
 }
     </style>
 </head>
