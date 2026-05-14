@@ -14,9 +14,10 @@
         /* MATCHING LAUNCHPAD STYLING */
         body { 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    min-width: 1300px; /* Ensures the page never squishes smaller than desktop */
+    min-width: 1300px; 
     margin: 0;
     padding: 0;
+    background-color: #f8f9fa; /* Restores a light background color */
 }
         /* Styling for all cells except the Status column */
 .cell-row textarea {
@@ -46,14 +47,15 @@
     position: sticky; 
     top: 0; 
     z-index: 1000; 
-    background-color: #f1f3f4;
+    background-color: #f1f3f4; /* Standard Grey */
     height: 50px; 
     display: flex; 
     align-items: center; 
     padding: 0 30px;
     border-bottom: 1px solid #dcdcdc; 
     justify-content: space-between;
-    width: 1300px; /* Match body width */
+    width: 100%; /* Changed from 1300px to 100% */
+    min-width: 1300px; /* Ensures buttons don't move closer on iPad */
     box-sizing: border-box;
 }
 
@@ -62,10 +64,12 @@
             background: white; color: #d32f2f; cursor: pointer; border-radius: 4px; font-weight: bold;
         }
 
-        .frozen-bar {
+.frozen-bar {
     position: sticky; 
     top: 50px; 
     z-index: 999;
+    background-color: #de4343; /* Bright Red */
+    color: white;
 }
 
         .frozen-grid { display: flex; width: 100%; align-items: center; gap: 5px; }
@@ -205,7 +209,8 @@
 .frozen-bar, 
 .area-container, 
 .asset-container {
-    width: 1240px !important; 
+    width: 95% !important; /* Restores the full-screen desktop look */
+    min-width: 1240px !important; /* Prevents squishing on iPad */
     margin: 20px auto; 
     box-sizing: border-box;
 }
@@ -317,6 +322,7 @@
 .search-container {
     flex-shrink: 0;
     width: 320px !important;
+    background: white;
 }
 
 .search-container input {
