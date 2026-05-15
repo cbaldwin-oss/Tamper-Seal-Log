@@ -1334,50 +1334,48 @@ function renderEntries(container, entries) {
         container.innerHTML = '<p style="padding: 10px;">No matching records found.</p>';
         return;
     }
-    entries.forEach(entry => {
-        const id = entry.id;
-        const row = document.createElement('div');
-        row.className = 'cell-row';
-        row.dataset.id = id; 
+entries.forEach(entry => {
+    const id = entry.id;
+    const row = document.createElement('div');
+    row.className = 'cell-row';
+    row.dataset.id = id; 
 
-        // Helper to get the live value (either from cache or database)
-        const val = (f) => (localEdits[id] && localEdits[id][f] !== undefined) ? localEdits[id][f] : (entry[f] || '');
-const assetVal = (localEdits[id] && localEdits[id].asset_name !== undefined) ? localEdits[id].asset_name : (entry.asset_name || '');
-const locVal = (localEdits[id] && localEdits[id].location !== undefined) ? localEdits[id].location : (entry.Location || entry.location || '');
+    // Helper to check for existing local edits before using database values
+    const getVal = (field, dbVal) => (localEdits[id] && localEdits[id][field] !== undefined) ? localEdits[id][field] : (dbVal || '');
 
-row.innerHTML = `
-    <div class="edit-checkbox-cell">
-        <input type="checkbox" class="row-selector">
-    </div>
-    
-    <input class="edit-only-cell" list="asset-list" 
-           oninput="syncEdit('${id}', 'asset_name', this.value)" 
-           value="${assetVal}" ${!isEditMode ? 'readonly' : ''}>
-           
-    <input class="edit-only-cell" list="location-list" 
-           oninput="syncEdit('${id}', 'location', this.value)" 
-           value="${locVal}" ${!isEditMode ? 'readonly' : ''}>
-            
-            <textarea oninput="syncEdit('${id}', 'sub_area', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('sub_area')}</textarea>
-            <textarea oninput="syncEdit('${id}', 'seal_number', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('seal_number')}</textarea>
-            <textarea oninput="syncEdit('${id}', 'inspection_date', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('inspection_date')}</textarea>
-            <textarea oninput="syncEdit('${id}', 'signoff', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('signoff')}</textarea>
-            <textarea oninput="syncEdit('${id}', 'inspection_notes', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('inspection_notes')}</textarea>
-            
-            <select class="status-dropdown" onchange="syncEdit('${id}', 'status', this.value); applyStatusColor(this)" ${!isEditMode ? 'disabled' : ''}>
-                <option value="${val('status')}">${val('status') || 'Select...'}</option>
-                <option value="Intact">Intact</option>
-                <option value="Broken">Broken</option>
-                <option value="Removed">Removed</option>
-            </select>
-            
-            <textarea oninput="syncEdit('${id}', 'break_date', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('break_date')}</textarea>
-            <textarea oninput="syncEdit('${id}', 'responsible_party', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('responsible_party')}</textarea>
-            <textarea oninput="syncEdit('${id}', 'break_reason', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('break_reason')}</textarea>
-        `;
-        applyStatusColor(row.querySelector('.status-dropdown'));
-        container.appendChild(row);
-    });
+    row.innerHTML = `
+        <div class="edit-checkbox-cell">
+            <input type="checkbox" class="row-selector">
+        </div>
+        
+        <input class="edit-only-cell" list="asset-list" 
+               oninput="syncEdit('${id}', 'asset_name', this.value)"
+               value="${getVal('asset_name', entry.asset_name)}" ${!isEditMode ? 'readonly' : ''}>
+        
+        <input class="edit-only-cell" list="location-list" 
+               oninput="syncEdit('${id}', 'location', this.value)"
+               value="${getVal('location', entry.Location || entry.location)}" ${!isEditMode ? 'readonly' : ''}>
+        
+        <textarea oninput="syncEdit('${id}', 'sub_area', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('sub_area', entry.sub_area)}</textarea>
+        <textarea oninput="syncEdit('${id}', 'seal_number', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('seal_number', entry.seal_number)}</textarea>
+        <textarea oninput="syncEdit('${id}', 'inspection_date', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('inspection_date', entry.inspection_date)}</textarea>
+        <textarea oninput="syncEdit('${id}', 'signoff', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('signoff', entry.signoff)}</textarea>
+        <textarea oninput="syncEdit('${id}', 'inspection_notes', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('inspection_notes', entry.inspection_notes)}</textarea>
+        
+        <select class="status-dropdown" onchange="syncEdit('${id}', 'status', this.value); applyStatusColor(this)" ${!isEditMode ? 'disabled' : ''}>
+            <option value="${getVal('status', entry.status)}">${getVal('status', entry.status) || 'Select...'}</option>
+            <option value="Intact">Intact</option>
+            <option value="Broken">Broken</option>
+            <option value="Removed">Removed</option>
+        </select>
+        
+        <textarea oninput="syncEdit('${id}', 'break_date', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('break_date', entry.break_date)}</textarea>
+        <textarea oninput="syncEdit('${id}', 'responsible_party', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('responsible_party', entry.responsible_party)}</textarea>
+        <textarea oninput="syncEdit('${id}', 'break_reason', this.value)" ${!isEditMode ? 'readonly' : ''}>${getVal('break_reason', entry.break_reason)}</textarea>
+    `;
+    applyStatusColor(row.querySelector('.status-dropdown'));
+    container.appendChild(row);
+});
 }
 
 function applyStatusColor(el) {
