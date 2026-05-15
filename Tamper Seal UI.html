@@ -600,6 +600,10 @@ input:not([type="checkbox"]), textarea, select {
                 <label>Signoff (Email)</label>
                 <input type="text" id="newSignoff" placeholder="Your Email">
             </div>
+            <div style="grid-column: span 2;">
+    <label>Inspection Notes</label>
+    <input type="text" id="newNotes" placeholder="General notes for this batch of seals...">
+</div>
         </div>
         <div class="modal-btns">
             <button class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20;" onclick="generatePreview()">Generate Preview</button>
@@ -1462,6 +1466,7 @@ function generatePreview() {
         asset_name: document.getElementById('newAsset').value,
         sub_area: document.getElementById('newSubArea').value,
         inspection_date: document.getElementById('newDate').value,
+        inspection_notes: document.getElementById('newNotes').value,
         signoff: document.getElementById('newSignoff').value,
         status: 'Intact'
     };
