@@ -681,35 +681,37 @@ let gapiInited = false;
 let gisInited = false;
 let accessToken = null;
 
-// Refresh the log every 5 minutes (300,000 milliseconds)
+let isPreviewMode = false; 
+
 setInterval(() => {
-    if (!isEditMode) { // Don't refresh if the user is currently typing!
+    // Skip refresh if editing OR previewing
+    if (!isEditMode && !isPreviewMode) { 
         fetchHierarchyData(true);
     }
 }, 60000);
 
+// Update initApp (around line 420)
 async function initApp() {
-    await fetchLookupData(); // Fetch the dropdown values first
-    await fetchHierarchyData(); // Initial load
+    await fetchLookupData();
+    
+    // Check if there is a saved preview to restore
+    const savedPreview = localStorage.getItem('pendingPreview');
+    if (savedPreview) {
+        isPreviewMode = true;
+        const entries = JSON.parse(savedPreview);
+        renderPreviewGrid(entries);
+    } else {
+        await fetchHierarchyData();
+    }
 
-    // SET UP REALTIME LISTENER
+    // Update the Realtime listener (around line 433)
     _supabase
         .channel('schema-db-changes')
-        .on(
-            'postgres_changes', 
-            { 
-                event: '*', 
-                schema: 'public', 
-                table: 'Assets' 
-            }, 
-            (payload) => {
-    console.log('Change received!', payload);
-    // Don't refresh if the user is currently editing rows
-    if (!isEditMode) {
-        fetchHierarchyData(true); // true = silent refresh
-    }
-}
-        )
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'Assets' }, (payload) => {
+            if (!isEditMode && !isPreviewMode) { // Stop realtime from wiping preview
+                fetchHierarchyData(true);
+            }
+        })
         .subscribe();
 }
 
@@ -1669,28 +1671,35 @@ function generatePreview() {
  * Step 2: Show generated rows in the main area for final editing
  */
 function renderPreviewGrid(entries) {
+    isPreviewMode = true; // Set flag
+    localStorage.setItem('pendingPreview', JSON.stringify(entries)); // Save for reload
+
     const container = document.getElementById('main-content-area');
     container.innerHTML = `
         <div class="preview-banner">
             <h2>Review New Entries (${entries.length} rows)</h2>
             <p>You can edit any cell below before saving. These items have not been added to the database yet.</p>
             <button class="tool-btn" style="background-color: #1b5e20; color: white; padding: 10px 20px;" onclick="saveNewEntries()">Confirm & Save to Database</button>
-            <button class="tool-btn" style="margin-left:10px;" onclick="fetchHierarchyData()">Cancel & Discard</button>
+            <button class="tool-btn" style="margin-left:10px;" onclick="discardPreview()">Cancel & Discard</button>
         </div>
         <div id="preview-rows-container"></div>
     `;
 
     const rowsContainer = document.getElementById('preview-rows-container');
-    // We reuse the Edit Mode state to make textareas editable
     const originalMode = isEditMode;
     isEditMode = true; 
     renderEntries(rowsContainer, entries);
     isEditMode = originalMode;
 
-    // Remove checkboxes from preview (not needed for creation)
     document.querySelectorAll('#preview-rows-container .edit-checkbox-cell').forEach(el => el.remove());
-    // Ensure Asset/Location are visible in preview
     document.querySelectorAll('#preview-rows-container .edit-only-cell').forEach(el => el.style.display = 'flex');
+}
+
+function discardPreview() {
+    if (!confirm("Discard this preview?")) return;
+    localStorage.removeItem('pendingPreview');
+    isPreviewMode = false;
+    fetchHierarchyData();
 }
 
 async function saveNewEntries() {
@@ -1701,6 +1710,7 @@ async function saveNewEntries() {
 
     try {
         const newRecords = Array.from(rows).map(row => {
+            // UPDATED SELECTOR: Includes 'input' so Asset and Location are captured
             const inputs = row.querySelectorAll('input:not([type="checkbox"]), textarea, select');
             return {
                 asset_name: inputs[0].value,
@@ -1717,25 +1727,14 @@ async function saveNewEntries() {
             };
         });
 
-        // 1. Insert the NEW seals
-        const { error: insertError } = await _supabase.from('Assets').insert(newRecords);
-        if (insertError) throw insertError;
+        const { error } = await _supabase.from('Assets').insert(newRecords);
+        if (error) throw error;
 
-        // 2. NEW: If this was a reinspection, update the OLD seals to 'Replaced'
-        if (isReinspectionMode && selectedBrokenSealIds.length > 0) {
-            const { error: updateError } = await _supabase
-                .from('Assets')
-                .update({ status: 'Replaced' })
-                .in('id', selectedBrokenSealIds);
-            
-            if (updateError) console.error("Status Update Error:", updateError);
-        }
-
-        indicator.innerText = "Created Successfully";
+        // Success Cleanup
+        localStorage.removeItem('pendingPreview');
+        isPreviewMode = false;
         
-        // 3. Clear data and Refresh UI
-        isReinspectionMode = false;
-        selectedBrokenSealIds = [];
+        indicator.innerText = "Created Successfully";
         await fetchLookupData();
         await fetchHierarchyData();
     } catch (err) {
