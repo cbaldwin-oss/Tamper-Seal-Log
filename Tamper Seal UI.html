@@ -621,11 +621,6 @@ input:not([type="checkbox"]), textarea, select {
     </div>
 </div> ```
 
-### 2. Why this resolves the issue
-* **Default Hiding**: Your CSS defines `.modal-overlay` with `display: none;`. Without this wrapper, the `modal-content` is just a standard div that is always visible on the page.
-* **JavaScript Linkage**: Your `showAddModal()` function (at line 1184) tries to set `document.getElementById('addModal').style.display = 'flex';`. If that ID doesn't exist in the HTML, the button will click but nothing will happen (or errors will occur).
-* **Resetting the View**: The `showAddModal` function also correctly sets `step-choice` to `block` and hides the other steps. By wrapping the HTML, you allow this function to control the "starting state" of the modal every time it opens.
-
 <div id="exportModal" class="modal-overlay">
     <div class="modal-content">
         <h3>Export Log</h3>
