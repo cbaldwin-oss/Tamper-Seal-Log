@@ -1598,12 +1598,22 @@ function proceedToStandardForm() {
 }
 
 function showAddModal() {
-    // 1. Reset Reinspection Logic
     isReinspectionMode = false;
     selectedBrokenSeals = [];
-    if (typeof selectedBrokenSealIds !== 'undefined') selectedBrokenSealIds = [];
+    
+    // Open the modal and show Step 1 (The Choice screen)
+    document.getElementById('addModal').style.display = 'flex';
+    document.getElementById('step-choice').style.display = 'block';
+    document.getElementById('step-standard').style.display = 'none';
+    document.getElementById('step-reinspection').style.display = 'none';
+    document.getElementById('modalTitle').innerText = "Add Tamper Seals";
 
-    // 2. Clear Standard Form Inputs
+    // 1. SET DATE TO TODAY
+    // This ensures the date is fresh every time the form is opened
+    document.getElementById('newDate').value = new Date().toISOString().split('T')[0];
+
+    // 2. CLEAR OTHER INPUTS (Prevent data from the last session from showing)
+    document.getElementById('newNotes').value = "";
     document.getElementById('startSeal').value = "";
     document.getElementById('endSeal').value = "";
     document.getElementById('omittedSeals').value = "";
@@ -1611,30 +1621,10 @@ function showAddModal() {
     document.getElementById('newAsset').value = "";
     document.getElementById('newSubArea').value = "";
     document.getElementById('newSignoff').value = "";
-    document.getElementById('newNotes').value = "";
     
-    // Reset date to today
-    document.getElementById('newDate').value = new Date().toISOString().split('T')[0];
-
-    // 3. Clear Reinspection Form Inputs
-    const assetSelect = document.getElementById('brokenAssetSelect');
-    if (assetSelect) assetSelect.selectedIndex = 0;
-    
-    const sealList = document.getElementById('sealCheckboxList');
-    if (sealList) sealList.innerHTML = "";
-    
-    const brokenContainer = document.getElementById('brokenSealsContainer');
-    if (brokenContainer) brokenContainer.style.display = 'none';
-    
-    const nextBtn = document.getElementById('reinspectNextBtn');
-    if (nextBtn) nextBtn.style.display = 'none';
-
-    // 4. Reset Modal UI to Step 1
-    document.getElementById('addModal').style.display = 'flex';
-    document.getElementById('step-choice').style.display = 'block';
-    document.getElementById('step-standard').style.display = 'none';
-    document.getElementById('step-reinspection').style.display = 'none';
-    document.getElementById('modalTitle').innerText = "Add Tamper Seals";
+    // Reset the broken asset dropdown if it exists
+    const brokenSelect = document.getElementById('brokenAssetSelect');
+    if (brokenSelect) brokenSelect.selectedIndex = 0;
 }
 
 function closeAddModal() {
