@@ -1597,19 +1597,44 @@ function proceedToStandardForm() {
     document.getElementById('modalTitle').innerText = "Add Replacement Seals";
 }
 
-/**
- * Reset Reinspection Mode when showing the main modal
- */
 function showAddModal() {
+    // 1. Reset Reinspection Logic
     isReinspectionMode = false;
     selectedBrokenSeals = [];
+    if (typeof selectedBrokenSealIds !== 'undefined') selectedBrokenSealIds = [];
+
+    // 2. Clear Standard Form Inputs
+    document.getElementById('startSeal').value = "";
+    document.getElementById('endSeal').value = "";
+    document.getElementById('omittedSeals').value = "";
+    document.getElementById('newLocation').value = "";
+    document.getElementById('newAsset').value = "";
+    document.getElementById('newSubArea').value = "";
+    document.getElementById('newSignoff').value = "";
+    document.getElementById('newNotes').value = "";
+    
+    // Reset date to today
+    document.getElementById('newDate').value = new Date().toISOString().split('T')[0];
+
+    // 3. Clear Reinspection Form Inputs
+    const assetSelect = document.getElementById('brokenAssetSelect');
+    if (assetSelect) assetSelect.selectedIndex = 0;
+    
+    const sealList = document.getElementById('sealCheckboxList');
+    if (sealList) sealList.innerHTML = "";
+    
+    const brokenContainer = document.getElementById('brokenSealsContainer');
+    if (brokenContainer) brokenContainer.style.display = 'none';
+    
+    const nextBtn = document.getElementById('reinspectNextBtn');
+    if (nextBtn) nextBtn.style.display = 'none';
+
+    // 4. Reset Modal UI to Step 1
     document.getElementById('addModal').style.display = 'flex';
     document.getElementById('step-choice').style.display = 'block';
     document.getElementById('step-standard').style.display = 'none';
     document.getElementById('step-reinspection').style.display = 'none';
     document.getElementById('modalTitle').innerText = "Add Tamper Seals";
-    // Reset inputs
-    document.getElementById('newNotes').value = "";
 }
 
 function closeAddModal() {
