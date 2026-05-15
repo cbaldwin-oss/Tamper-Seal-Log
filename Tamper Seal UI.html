@@ -1383,31 +1383,22 @@ async function deleteSelected() {
     }
 }
 
-/**
- * Optimized: Collects all data and performs ONE bulk request
- */
 async function saveAllChanges() {
     const updatePromises = [];
     const indicator = document.getElementById('saveIndicator');
 
-    // 1. Iterate through the CACHE, not just visible rows
     for (const id in localEdits) {
         const changes = localEdits[id];
         if (Object.keys(changes).length === 0) continue;
 
-        // Ensure location is mapped to the correct column name for your DB
-        if (changes.location) {
-            changes.Location = changes.location;
-            delete changes.location;
-        }
-
+        // We use 'location' (lowercase) to match the keys in syncEdit
+        // and the previous successful payloads.
         updatePromises.push(
-            _supabase.from('Assets').update(changes).eq('id', id)
+            _supabase.from('Assets').update(changes).eq('id', Number(id))
         );
     }
 
     if (updatePromises.length === 0) {
-        console.log("No changes to save.");
         return; 
     }
 
@@ -1415,10 +1406,11 @@ async function saveAllChanges() {
     const errors = results.filter(r => r.error);
     
     if (errors.length > 0) {
-        alert("Failed to save some rows.");
+        console.error("Save Errors:", errors);
+        alert("Failed to save some rows. Check console for details.");
     } else {
-        localEdits = {}; // Clear cache after successful save
-        await fetchLookupData(); // Refresh the dropdown options with any new names
+        localEdits = {}; 
+        await fetchLookupData(); 
         await fetchHierarchyData(true); 
     }
 }
@@ -1692,9 +1684,10 @@ async function saveNewEntries() {
     indicator.innerText = "Saving to Database...";
 
     try {
-        // 1. Map data directly from the preview rows
         const newRecords = Array.from(rows).map(row => {
-            const inputs = row.querySelectorAll('textarea, select');
+            // UPDATED SELECTOR: Includes 'input' so Asset and Location aren't skipped
+            const inputs = row.querySelectorAll('input:not([type="checkbox"]), textarea, select');
+            
             return {
                 asset_name: inputs[0].value,
                 location: inputs[1].value,
@@ -1707,22 +1700,18 @@ async function saveNewEntries() {
                 break_date: inputs[8].value,
                 responsible_party: inputs[9].value,
                 break_reason: inputs[10].value
-                // photo_link is omitted as it's no longer required
             };
         });
 
-        // 2. Perform the insert to Supabase
         const { error } = await _supabase.from('Assets').insert(newRecords);
         if (error) throw error;
 
         indicator.innerText = "Created Successfully";
-        
-        // 3. Refresh the UI to show the new entries in their correct hierarchy
-        await fetchLookupData(); // Refresh the dropdown options
+        await fetchLookupData(); 
         await fetchHierarchyData();
     } catch (err) {
-        console.error(err);
-        alert("Operation failed. Check console for details.");
+        console.error("Save Failed:", err);
+        alert("Operation failed. " + (err.message || "Check console for details."));
         indicator.innerText = "Error";
     }
 }
