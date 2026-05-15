@@ -1531,6 +1531,7 @@ function collapseAll() {
 // Add a global variable to track if we are in reinspection mode
 let isReinspectionMode = false;
 let selectedBrokenSeals = [];
+let selectedBrokenSealIds = []; // NEW: Stores database IDs
 
 /**
  * Updated: Reveal the "Next" button instead of the preview button
@@ -1577,7 +1578,10 @@ function proceedToStandardForm() {
     }
 
     isReinspectionMode = true;
+    // Capture Seal Numbers for the note
     selectedBrokenSeals = Array.from(checked).map(cb => cb.dataset.old_seal);
+    // NEW: Capture Database IDs for the status update
+    selectedBrokenSealIds = Array.from(checked).map(cb => cb.value); 
 
     // Pre-fill the standard form fields
     document.getElementById('newAsset').value = document.getElementById('brokenAssetSelect').value;
@@ -1674,9 +1678,6 @@ function renderPreviewGrid(entries) {
     document.querySelectorAll('#preview-rows-container .edit-only-cell').forEach(el => el.style.display = 'flex');
 }
 
-/**
- * Step 3: Save the previewed data to Supabase
- */
 async function saveNewEntries() {
     const rows = document.querySelectorAll('#preview-rows-container .cell-row');
     const indicator = document.getElementById('saveIndicator');
@@ -1685,9 +1686,7 @@ async function saveNewEntries() {
 
     try {
         const newRecords = Array.from(rows).map(row => {
-            // UPDATED SELECTOR: Includes 'input' so Asset and Location aren't skipped
             const inputs = row.querySelectorAll('input:not([type="checkbox"]), textarea, select');
-            
             return {
                 asset_name: inputs[0].value,
                 location: inputs[1].value,
@@ -1703,15 +1702,30 @@ async function saveNewEntries() {
             };
         });
 
-        const { error } = await _supabase.from('Assets').insert(newRecords);
-        if (error) throw error;
+        // 1. Insert the NEW seals
+        const { error: insertError } = await _supabase.from('Assets').insert(newRecords);
+        if (insertError) throw insertError;
+
+        // 2. NEW: If this was a reinspection, update the OLD seals to 'Replaced'
+        if (isReinspectionMode && selectedBrokenSealIds.length > 0) {
+            const { error: updateError } = await _supabase
+                .from('Assets')
+                .update({ status: 'Replaced' })
+                .in('id', selectedBrokenSealIds);
+            
+            if (updateError) console.error("Status Update Error:", updateError);
+        }
 
         indicator.innerText = "Created Successfully";
-        await fetchLookupData(); 
+        
+        // 3. Clear data and Refresh UI
+        isReinspectionMode = false;
+        selectedBrokenSealIds = [];
+        await fetchLookupData();
         await fetchHierarchyData();
     } catch (err) {
-        console.error("Save Failed:", err);
-        alert("Operation failed. " + (err.message || "Check console for details."));
+        console.error(err);
+        alert("Operation failed. Check console for details.");
         indicator.innerText = "Error";
     }
 }
