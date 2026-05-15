@@ -525,6 +525,8 @@ input:not([type="checkbox"]), textarea, select {
     </style>
 </head>
 <body>
+    <datalist id="asset-list"></datalist>
+<datalist id="location-list"></datalist>
 
 <div class="header">
     <div class="header-left">
@@ -579,13 +581,13 @@ input:not([type="checkbox"]), textarea, select {
                 <input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007">
             </div>
             <div>
-                <label>Location / Area</label>
-                <input type="text" id="newLocation" placeholder="Area Name">
-            </div>
-            <div>
-                <label>Asset Name</label>
-                <input type="text" id="newAsset" placeholder="Asset Name">
-            </div>
+    <label>Location / Area</label>
+    <input type="text" id="newLocation" list="location-list" placeholder="Select or type new...">
+</div>
+<div>
+    <label>Asset Name</label>
+    <input type="text" id="newAsset" list="asset-list" placeholder="Select or type new...">
+</div>
             <div>
                 <label>Sub Area</label>
                 <input type="text" id="newSubArea" placeholder="Sub Area">
@@ -659,6 +661,7 @@ const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let allHierarchyRecords = [];
 let localEdits = {}; // NEW: Stores unsaved changes by ID
+let lookupData = { assets: [], locations: [] };
 // Change to Sets to track multiple active values
 let activeFilters = { 
     locations: new Set(['All']), 
@@ -679,6 +682,7 @@ setInterval(() => {
 }, 60000);
 
 async function initApp() {
+    await fetchLookupData(); // Fetch the dropdown values first
     await fetchHierarchyData(); // Initial load
 
     // SET UP REALTIME LISTENER
@@ -700,6 +704,24 @@ async function initApp() {
 }
         )
         .subscribe();
+}
+
+async function fetchLookupData() {
+    // Replace 'AssetRegistry' with your actual reference table name
+    const { data, error } = await _supabase.from('AssetRegistry').select('asset_name, location');
+    
+    if (error) {
+        console.error("Error fetching lookups:", error);
+        return;
+    }
+
+    // Filter unique values
+    lookupData.assets = [...new Set(data.map(item => item.asset_name))].sort();
+    lookupData.locations = [...new Set(data.map(item => item.location))].sort();
+
+    // Populate HTML Datalists
+    document.getElementById('asset-list').innerHTML = lookupData.assets.map(a => `<option value="${a}">`).join('');
+    document.getElementById('location-list').innerHTML = lookupData.locations.map(l => `<option value="${l}">`).join('');
 }
 
 async function toggleEditMode() {
@@ -1320,15 +1342,21 @@ function renderEntries(container, entries) {
 
         // Helper to get the live value (either from cache or database)
         const val = (f) => (localEdits[id] && localEdits[id][f] !== undefined) ? localEdits[id][f] : (entry[f] || '');
-        // Specific check for location/Location mismatch
-        const locVal = (localEdits[id] && localEdits[id].location !== undefined) ? localEdits[id].location : (entry.Location || entry.location || '');
+const assetVal = (localEdits[id] && localEdits[id].asset_name !== undefined) ? localEdits[id].asset_name : (entry.asset_name || '');
+const locVal = (localEdits[id] && localEdits[id].location !== undefined) ? localEdits[id].location : (entry.Location || entry.location || '');
 
-        row.innerHTML = `
-            <div class="edit-checkbox-cell">
-                <input type="checkbox" class="row-selector">
-            </div>
-            <textarea class="edit-only-cell" oninput="syncEdit('${id}', 'asset_name', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('asset_name')}</textarea>
-            <textarea class="edit-only-cell" oninput="syncEdit('${id}', 'location', this.value)" ${!isEditMode ? 'readonly' : ''}>${locVal}</textarea>
+row.innerHTML = `
+    <div class="edit-checkbox-cell">
+        <input type="checkbox" class="row-selector">
+    </div>
+    
+    <input class="edit-only-cell" list="asset-list" 
+           oninput="syncEdit('${id}', 'asset_name', this.value)" 
+           value="${assetVal}" ${!isEditMode ? 'readonly' : ''}>
+           
+    <input class="edit-only-cell" list="location-list" 
+           oninput="syncEdit('${id}', 'location', this.value)" 
+           value="${locVal}" ${!isEditMode ? 'readonly' : ''}>
             
             <textarea oninput="syncEdit('${id}', 'sub_area', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('sub_area')}</textarea>
             <textarea oninput="syncEdit('${id}', 'seal_number', this.value)" ${!isEditMode ? 'readonly' : ''}>${val('seal_number')}</textarea>
