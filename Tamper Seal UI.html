@@ -564,59 +564,67 @@ input:not([type="checkbox"]), textarea, select {
 </div>
 </div>
 
-<div class="modal-content" style="max-width: 800px;">
-    <h3 id="modalTitle">Add Tamper Seals</h3>
-    
-    <div id="step-choice" style="padding: 40px; text-align: center;">
-        <p style="font-size: 18px; margin-bottom: 30px;">Is this a **Reinspection** of broken seals?</p>
-        <div style="display: flex; gap: 20px; justify-content: center;">
-            <button class="tool-btn" style="padding: 15px 40px; font-size: 16px; background: #d32f2f; color: white;" onclick="goToStep('reinspection')">Yes (Reinspection)</button>
-            <button class="tool-btn" style="padding: 15px 40px; font-size: 16px;" onclick="goToStep('standard')">No (New Batch)</button>
-        </div>
-    </div>
-
-    <div id="step-standard" style="display: none;">
-        <div class="bulk-add-grid">
-            <div><label>First Seal #</label><input type="number" id="startSeal" placeholder="e.g. 1001"></div>
-            <div><label>Last Seal #</label><input type="number" id="endSeal" placeholder="e.g. 1010"></div>
-            <div><label>Omitted Numbers</label><input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007"></div>
-            <div><label>Location / Area</label><input type="text" id="newLocation" list="location-list"></div>
-            <div><label>Asset Name</label><input type="text" id="newAsset" list="asset-list"></div>
-            <div><label>Sub Area</label><input type="text" id="newSubArea"></div>
-            <div><label>Inspection Date</label><input type="date" id="newDate"></div>
-            <div><label>Signoff (Email)</label><input type="text" id="newSignoff"></div>
-            <div style="grid-column: span 2;"><label>Inspection Notes</label><input type="text" id="newNotes"></div>
-        </div>
-        <div class="modal-btns">
-            <button class="tool-btn" style="background: #1b5e20; color: white;" onclick="generatePreview()">Generate Preview</button>
-            <button class="tool-btn" onclick="showAddModal()">Back</button>
-        </div>
-    </div>
-
-    <div id="step-reinspection" style="display: none; padding: 20px 50px;">
-        <div style="margin-bottom: 20px;">
-            <label style="color:#d32f2f; font-weight:bold; font-size:12px; text-transform:uppercase;">Select Asset with Broken Seals</label>
-            <select id="brokenAssetSelect" style="width:100%; height:45px; margin-top:5px;" onchange="loadBrokenSealsForAsset(this.value)">
-                <option value="">Loading assets...</option>
-            </select>
-        </div>
-        <div id="brokenSealsContainer" style="margin-bottom: 20px; max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; display:none;">
-            <label style="font-weight:bold; margin-bottom:10px; display:block;">Select Seals to Replace:</label>
-            <div id="sealCheckboxList"></div>
-        </div>
-        <div id="newSealInputs" style="display:none;">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                <div><label>New Start Seal #</label><input type="number" id="reinspectStartSeal"></div>
-                <div><label>Inspection Date</label><input type="date" id="reinspectDate"></div>
+<div id="addModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px;">
+        <h3 id="modalTitle">Add Tamper Seals</h3>
+        
+        <div id="step-choice" style="padding: 40px; text-align: center;">
+            <p style="font-size: 18px; margin-bottom: 30px;">Is this a **Reinspection** of broken seals?</p>
+            <div style="display: flex; gap: 20px; justify-content: center;">
+                <button class="tool-btn" style="padding: 15px 40px; font-size: 16px; background: #d32f2f; color: white;" onclick="goToStep('reinspection')">Yes (Reinspection)</button>
+                <button class="tool-btn" style="padding: 15px 40px; font-size: 16px;" onclick="goToStep('standard')">No (New Batch)</button>
+                <button class="tool-btn" style="padding: 15px 40px; font-size: 16px; border-color:#757575; color:#757575;" onclick="closeAddModal()">Cancel</button>
             </div>
-            <div style="margin-top:20px;"><label>Signoff (Email)</label><input type="text" id="reinspectSignoff"></div>
         </div>
-        <div class="modal-btns" style="padding: 20px 0;">
-            <button id="reinspectPreviewBtn" class="tool-btn" style="background: #1b5e20; color: white; display:none;" onclick="generateReinspectionPreview()">Generate Preview</button>
-            <button class="tool-btn" onclick="showAddModal()">Back</button>
+
+        <div id="step-standard" style="display: none;">
+            <div class="bulk-add-grid">
+                <div><label>First Seal #</label><input type="number" id="startSeal" placeholder="e.g. 1001"></div>
+                <div><label>Last Seal #</label><input type="number" id="endSeal" placeholder="e.g. 1010"></div>
+                <div><label>Omitted Numbers</label><input type="text" id="omittedSeals" placeholder="e.g. 1003, 1007"></div>
+                <div><label>Location / Area</label><input type="text" id="newLocation" list="location-list"></div>
+                <div><label>Asset Name</label><input type="text" id="newAsset" list="asset-list"></div>
+                <div><label>Sub Area</label><input type="text" id="newSubArea"></div>
+                <div><label>Inspection Date</label><input type="date" id="newDate"></div>
+                <div><label>Signoff (Email)</label><input type="text" id="newSignoff"></div>
+                <div style="grid-column: span 2;"><label>Inspection Notes</label><input type="text" id="newNotes"></div>
+            </div>
+            <div class="modal-btns">
+                <button class="tool-btn" style="background: #1b5e20; color: white;" onclick="generatePreview()">Generate Preview</button>
+                <button class="tool-btn" onclick="showAddModal()">Back</button>
+            </div>
+        </div>
+
+        <div id="step-reinspection" style="display: none; padding: 20px 50px;">
+            <div style="margin-bottom: 20px;">
+                <label style="color:#d32f2f; font-weight:bold; font-size:12px; text-transform:uppercase;">Select Asset with Broken Seals</label>
+                <select id="brokenAssetSelect" style="width:100%; height:45px; margin-top:5px;" onchange="loadBrokenSealsForAsset(this.value)">
+                    <option value="">Loading assets...</option>
+                </select>
+            </div>
+            <div id="brokenSealsContainer" style="margin-bottom: 20px; max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; display:none;">
+                <label style="font-weight:bold; margin-bottom:10px; display:block;">Select Seals to Replace:</label>
+                <div id="sealCheckboxList"></div>
+            </div>
+            <div id="newSealInputs" style="display:none;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div><label>New Start Seal #</label><input type="number" id="reinspectStartSeal"></div>
+                    <div><label>Inspection Date</label><input type="date" id="reinspectDate"></div>
+                </div>
+                <div style="margin-top:20px;"><label>Signoff (Email)</label><input type="text" id="reinspectSignoff"></div>
+            </div>
+            <div class="modal-btns" style="padding: 20px 0;">
+                <button id="reinspectPreviewBtn" class="tool-btn" style="background: #1b5e20; color: white; display:none;" onclick="generateReinspectionPreview()">Generate Preview</button>
+                <button class="tool-btn" onclick="showAddModal()">Back</button>
+            </div>
         </div>
     </div>
-</div>
+</div> ```
+
+### 2. Why this resolves the issue
+* **Default Hiding**: Your CSS defines `.modal-overlay` with `display: none;`. Without this wrapper, the `modal-content` is just a standard div that is always visible on the page.
+* **JavaScript Linkage**: Your `showAddModal()` function (at line 1184) tries to set `document.getElementById('addModal').style.display = 'flex';`. If that ID doesn't exist in the HTML, the button will click but nothing will happen (or errors will occur).
+* **Resetting the View**: The `showAddModal` function also correctly sets `step-choice` to `block` and hides the other steps. By wrapping the HTML, you allow this function to control the "starting state" of the modal every time it opens.
 
 <div id="exportModal" class="modal-overlay">
     <div class="modal-content">
