@@ -747,6 +747,7 @@ async function toggleEditMode() {
         exportBtn.style.display = "none";
         
         indicator.innerText = "Editing...";
+        document.querySelectorAll('.cell-row input').forEach(i => i.readOnly = false);
         document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = false);
         document.querySelectorAll('.cell-row select').forEach(s => s.disabled = false);
     } else {
@@ -793,6 +794,7 @@ function exitEditUI() {
     exportBtn.style.display = "inline-block";
     
     // Relock inputs and update status
+    document.querySelectorAll('.cell-row input').forEach(i => i.readOnly = true);
     document.querySelectorAll('.cell-row textarea').forEach(t => t.readOnly = true);
     document.querySelectorAll('.cell-row select').forEach(s => s.disabled = true);
     indicator.innerText = "Synced";
@@ -1316,6 +1318,7 @@ async function saveAllChanges() {
         alert("Failed to save some rows.");
     } else {
         localEdits = {}; // Clear cache after successful save
+        await fetchLookupData(); // Refresh the dropdown options with any new names
         await fetchHierarchyData(true); 
     }
 }
@@ -1542,6 +1545,7 @@ async function saveNewEntries() {
         indicator.innerText = "Created Successfully";
         
         // 3. Refresh the UI to show the new entries in their correct hierarchy
+        await fetchLookupData(); // Refresh the dropdown options
         await fetchHierarchyData();
     } catch (err) {
         console.error(err);
