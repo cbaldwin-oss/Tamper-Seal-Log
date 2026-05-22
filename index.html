@@ -1297,6 +1297,11 @@ function prevMatch() {
                     return searchStr.includes(query);
                 });
             }
+            if (duplicateSealList) {
+        assetRecords = assetRecords.filter(r => 
+            duplicateSealList.includes((r.seal_number || "").toString().trim())
+        );
+    }
             if (assetRecords.length === 0) return;
 
             visibleAssetsInArea++;
