@@ -553,6 +553,7 @@ input:not([type="checkbox"]), textarea, select {
 
     <div>
     <button class="tool-btn" style="background-color: #ffffff; color: rgb(0, 0, 0); border-color: #1b5e20; margin-right: 10px;" onclick="fetchHierarchyData(true)">Refresh</button>
+    <button id="duplicateBtn" class="tool-btn" style="background-color: #ffffff; color: #d32f2f; border-color: #d32f2f; margin-right: 10px;" onclick="findDuplicates()">Find Duplicates</button>
     <button id="addBtn" class="tool-btn" style="background-color: #1b5e20; color: white; border-color: #1b5e20; margin-right: 10px;" onclick="showAddModal()">+ Add Seals</button>
     <button id="editBtn" class="tool-btn" onclick="toggleEditMode()" style="margin-right: 10px;">Edit</button>
     
@@ -724,6 +725,60 @@ async function goToStep(step) {
         document.getElementById('modalTitle').innerText = "Reinspection: Replace Broken Seals";
         await loadBrokenAssets();
     }
+}
+
+// Add this near your other global variables
+let duplicateSealList = null;
+
+/**
+ * Identifies seal numbers appearing in more than one record,
+ * then filters and expands the UI to show only those duplicates.
+ */
+async function findDuplicates() {
+    const btn = document.getElementById('duplicateBtn');
+    const indicator = document.getElementById('saveIndicator');
+
+    // Toggle off if already active
+    if (duplicateSealList) {
+        duplicateSealList = null;
+        btn.innerText = "Find Duplicates";
+        btn.style.backgroundColor = "white";
+        btn.style.color = "#d32f2f";
+        await fetchHierarchyData(true);
+        return;
+    }
+
+    indicator.innerText = "Scanning for duplicates...";
+
+    // 1. Group records by seal number
+    const counts = {};
+    allHierarchyRecords.forEach(r => {
+        const num = (r.seal_number || "").toString().trim();
+        if (num) {
+            counts[num] = (counts[num] || 0) + 1;
+        }
+    });
+
+    // 2. Identify numbers with more than 1 instance
+    duplicateSealList = Object.keys(counts).filter(num => counts[num] > 1);
+
+    if (duplicateSealList.length === 0) {
+        alert("No duplicate seal numbers found.");
+        duplicateSealList = null;
+        indicator.innerText = "Synced";
+        return;
+    }
+
+    // 3. Update UI state
+    btn.innerText = "Clear Duplicate View";
+    btn.style.backgroundColor = "#d32f2f";
+    btn.style.color = "white";
+
+    // 4. Re-render the log and auto-expand everything found
+    await renderFilteredLog();
+    await expandAll();
+    
+    indicator.innerText = `Found ${duplicateSealList.length} duplicates`;
 }
 
 /**
@@ -1313,6 +1368,12 @@ async function fetchAndRender(container, assetName) {
     }
 
     let filteredData = entries;
+
+    if (duplicateSealList) {
+        filteredData = filteredData.filter(r => 
+            duplicateSealList.includes((r.seal_number || "").toString().trim())
+        );
+    }
 
     // 1. Apply multi-status filtering
     if (!activeFilters.statuses.has('All')) {
