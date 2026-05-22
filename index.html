@@ -420,16 +420,29 @@ body.is-editing .edit-header-cell {
     display: none !important; 
 }
 
-body.is-editing .edit-only-cell,
-body.is-editing .edit-only-header { 
-    display: flex !important; 
-    flex: 1;
-    /* ADDED STYLING TO MATCH NORMAL HEADERS */
+body.is-editing .edit-only-header {
+    flex: 1 !important; 
     justify-content: center;
     align-items: center;
-    font-size: 11px;           /* Matches .header-cell */
-    font-weight: bold;         /* Matches .header-cell */
-    text-transform: uppercase; /* Matches .header-cell */
+    /* Font styles are now handled by .header-cell in the HTML */
+}
+
+/* 4. Row Column Styling: Ensure "Asset Name" and "Location" inputs match other textareas */
+body.is-editing input.edit-only-cell {
+    flex: 1 !important;
+    font-size: 14px; /* Matches normal row values, not the 11px header size */
+    font-weight: 500;
+    text-align: center;
+    border: 1px solid #d32f2f !important;
+    background-color: #ffffff !important;
+}
+
+/* 5. FIX: Separators should NOT expand to fill a column */
+body.is-editing span.edit-only-cell {
+    flex: none !important; 
+    width: auto !important;
+    padding: 0 2px;
+    color: white; /* Matches other separators in the red bar */
 }
 
 /* 3. Visual feedback for fields you are currently editing */
