@@ -415,7 +415,6 @@ body.is-editing .edit-header-cell {
     display: block !important; 
 }
 
-/* 2. Asset & Location Columns (Show only during Edit or Preview) */
 .edit-only-cell,
 .edit-only-header { 
     display: none !important; 
@@ -425,6 +424,12 @@ body.is-editing .edit-only-cell,
 body.is-editing .edit-only-header { 
     display: flex !important; 
     flex: 1;
+    /* ADDED STYLING TO MATCH NORMAL HEADERS */
+    justify-content: center;
+    align-items: center;
+    font-size: 11px;           /* Matches .header-cell */
+    font-weight: bold;         /* Matches .header-cell */
+    text-transform: uppercase; /* Matches .header-cell */
 }
 
 /* 3. Visual feedback for fields you are currently editing */
