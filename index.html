@@ -962,16 +962,15 @@ function exitEditUI() {
 async function fetchHierarchyData(isSilent = false) {
     const container = document.getElementById('main-content-area');
     
-    // 1. Capture State and Scroll Position
+    // 1. Capture State and Scroll Position to prevent UI jumps
     const openAreas = new Set();
     const openAssets = new Set();
-    const scrollPos = window.scrollY; // Capture current view point
+    const scrollPos = window.scrollY; 
     
     if (isSilent) {
         document.querySelectorAll('.area-container').forEach(areaDiv => {
             const content = areaDiv.querySelector('.area-content');
             if (content && !content.classList.contains('hidden')) {
-                // Use trim() to ensure matching is exact
                 const name = areaDiv.querySelector('.area-header span').innerText.replace('Area: ', '').trim();
                 openAreas.add(name);
             }
@@ -982,31 +981,15 @@ async function fetchHierarchyData(isSilent = false) {
             }
         });
     } else {
-        container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning 10,000 entries for Areas and Assets...</p>';
+        container.innerHTML = '<p style="text-align:center; padding:20px;">Scanning entries for Areas and Assets...</p>';
     }
 
     let allRecords = [];
     let from = 0, to = 999, fetchMore = true;
 
+    // 2. RESTORED SAFE FETCH: Uses select('*') to ensure client-side filters have access to all data
     while (fetchMore && allRecords.length < 10000) {
-        // 1. Initialize the query with restricted columns instead of select('*')
-        let queryBuilder = _supabase
-            .from('Assets')
-            .select('id, asset_name, location, sub_area, seal_number, inspection_date, signoff, inspection_notes, status, break_date, responsible_party, break_reason');
-
-        // 2. Apply Location Filters on the database level
-        if (!activeFilters.locations.has('All')) {
-            queryBuilder = queryBuilder.in('location', [...activeFilters.locations]);
-        }
-        
-        // 3. Apply Status Filters on the database level
-        if (!activeFilters.statuses.has('All')) {
-            queryBuilder = queryBuilder.in('status', [...activeFilters.statuses]);
-        }
-
-        // 4. Run the query with the current pagination range
-        const { data, error } = await queryBuilder.range(from, to);
-        
+        const { data, error } = await _supabase.from('Assets').select('*').range(from, to);
         if (error) {
             container.innerHTML = '<p style="text-align:center; color:red;">Error loading log hierarchy.</p>';
             return;
@@ -1018,7 +1001,8 @@ async function fetchHierarchyData(isSilent = false) {
 
     allHierarchyRecords = allRecords;
     createFilterButtons();
-    // Pass everything including scroll position to the renderer
+    
+    // Render the visual layout locally using the complete cache
     await renderFilteredLog(openAreas, openAssets, scrollPos);
 }
 
