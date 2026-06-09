@@ -684,13 +684,6 @@ let accessToken = null;
 
 let isPreviewMode = false; 
 
-setInterval(() => {
-    // Skip refresh if editing OR previewing
-    if (!isEditMode && !isPreviewMode) { 
-        fetchHierarchyData(true);
-    }
-}, 60000);
-
 // Update initApp (around line 420)
 async function initApp() {
     await fetchLookupData();
@@ -707,13 +700,22 @@ async function initApp() {
 
     // Update the Realtime listener (around line 433)
     _supabase
-        .channel('schema-db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'Assets' }, (payload) => {
-            if (!isEditMode && !isPreviewMode) { // Stop realtime from wiping preview
-                fetchHierarchyData(true);
-            }
-        })
-        .subscribe();
+    .channel('schema-db-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'Assets' }, (payload) => {
+        if (isEditMode || isPreviewMode) return;
+
+        if (payload.eventType === 'INSERT') {
+            allHierarchyRecords.push(payload.new);
+        } else if (payload.eventType === 'UPDATE') {
+            allHierarchyRecords = allHierarchyRecords.map(r => r.id === payload.new.id ? payload.new : r);
+        } else if (payload.eventType === 'DELETE') {
+            allHierarchyRecords = allHierarchyRecords.filter(r => r.id !== payload.old.id);
+        }
+        
+        // Re-render the visual layout locally WITHOUT calling the database again
+        renderFilteredLog();
+    })
+    .subscribe();
 }
 
 async function goToStep(step) {
@@ -987,7 +989,24 @@ async function fetchHierarchyData(isSilent = false) {
     let from = 0, to = 999, fetchMore = true;
 
     while (fetchMore && allRecords.length < 10000) {
-        const { data, error } = await _supabase.from('Assets').select('*').range(from, to);
+        // 1. Initialize the query with restricted columns instead of select('*')
+        let queryBuilder = _supabase
+            .from('Assets')
+            .select('id, asset_name, location, sub_area, seal_number, inspection_date, signoff, inspection_notes, status, break_date, responsible_party, break_reason');
+
+        // 2. Apply Location Filters on the database level
+        if (!activeFilters.locations.has('All')) {
+            queryBuilder = queryBuilder.in('location', [...activeFilters.locations]);
+        }
+        
+        // 3. Apply Status Filters on the database level
+        if (!activeFilters.statuses.has('All')) {
+            queryBuilder = queryBuilder.in('status', [...activeFilters.statuses]);
+        }
+
+        // 4. Run the query with the current pagination range
+        const { data, error } = await queryBuilder.range(from, to);
+        
         if (error) {
             container.innerHTML = '<p style="text-align:center; color:red;">Error loading log hierarchy.</p>';
             return;
@@ -1361,11 +1380,9 @@ async function fetchAndRender(container, assetName) {
 
     while (fetchMore && entries.length < 10000) {
         const { data, error } = await _supabase
-            .from('Assets')
-            .select('*')
-            .eq('asset_name', assetName)
-            .range(from, to);
-            
+    .from('Assets')
+    .select('id, asset_name, location, sub_area, seal_number, inspection_date, signoff, inspection_notes, status, break_date, responsible_party, break_reason')
+    .range(from, to);
         if (error) return;
         entries = entries.concat(data);
         if (data.length < 1000) fetchMore = false;
