@@ -1357,31 +1357,20 @@ async function toggleAsset(header, assetName) {
 }
 
 async function fetchAndRender(container, assetName) {
-    container.innerHTML = '<p style="padding:10px;">Loading up to 10,000 entries...</p>';
-    
-    let entries = [];
-    let from = 0, to = 999, fetchMore = true;
-
-    while (fetchMore && entries.length < 10000) {
-        const { data, error } = await _supabase
-    .from('Assets')
-    .select('id, asset_name, location, sub_area, seal_number, inspection_date, signoff, inspection_notes, status, break_date, responsible_party, break_reason')
-    .range(from, to);
-        if (error) return;
-        entries = entries.concat(data);
-        if (data.length < 1000) fetchMore = false;
-        else { from += 1000; to += 1000; }
-    }
+    // 1. Grab data instantly from the local cache instead of re-downloading it
+    // 2. FILTER by the specific assetName so it only shows the correct seals
+    let entries = allHierarchyRecords.filter(r => r.asset_name === assetName);
 
     let filteredData = entries;
 
+    // Apply Duplicate Filter
     if (duplicateSealList) {
         filteredData = filteredData.filter(r => 
             duplicateSealList.includes((r.seal_number || "").toString().trim())
         );
     }
 
-    // 1. Apply multi-status filtering
+    // Apply multi-status filtering
     if (!activeFilters.statuses.has('All')) {
         const targetStats = [...activeFilters.statuses].map(s => s.toLowerCase());
         filteredData = filteredData.filter(r => {
@@ -1390,7 +1379,7 @@ async function fetchAndRender(container, assetName) {
         });
     }
 
-    // 2. ADDED: Apply search filtering to individual rows
+    // Apply search filtering to individual rows
     const query = activeFilters.search;
     if (query !== '') {
         filteredData = filteredData.filter(r => {
@@ -1399,7 +1388,7 @@ async function fetchAndRender(container, assetName) {
         });
     }
 
-    // 3. Sort: Broken first
+    // Sort: Broken first
     filteredData.sort((a, b) => {
         const getP = (s) => (s||'').toLowerCase().includes('broken') ? 1 : (s||'').toLowerCase().includes('intact') ? 2 : 3;
         return getP(a.status) - getP(b.status);
@@ -1409,7 +1398,6 @@ async function fetchAndRender(container, assetName) {
     renderEntries(container, filteredData);
     container.setAttribute('data-loaded', 'true');
 }
-
 let isEditMode = false;
 
 async function deleteSelected() {
